@@ -46,3 +46,8 @@ DEFAULT_WEBODM_PASSWORD = "admin"
 # External resources
 DOCKER_DESKTOP_URL = "https://www.docker.com/products/docker-desktop"
 
+# Docker Desktop installation (Windows x64)
+DOCKER_DESKTOP_INSTALLER_URL = "https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe"
+DOCKER_DESKTOP_INSTALLER_FILENAME = "DockerDesktopInstaller.exe"
+DOCKER_DESKTOP_INSTALL_PATH = r"C:\Program Files\Docker\Docker\Docker Desktop.exe"
+
