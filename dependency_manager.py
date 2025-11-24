@@ -164,7 +164,7 @@ class DependencyManager:
                         capture_output=True,
                         timeout=10
                     )
-                except:
+                except Exception:
                     pass  # setx is optional
             
             winreg.CloseKey(key)

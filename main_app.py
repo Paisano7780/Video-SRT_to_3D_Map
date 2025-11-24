@@ -18,6 +18,7 @@ from exif_injector import ExifInjector
 from webodm_client import WebODMClient
 from webodm_manager import WebODMManager
 from dependency_manager import DependencyManager, show_dependency_setup_wizard
+from config import DOCKER_DESKTOP_URL
 
 
 class PhotogrammetryApp:
@@ -306,7 +307,7 @@ class PhotogrammetryApp:
         # Check Docker for WebODM
         if not status['docker']['installed']:
             self.log("⚠ Docker not installed - 3D reconstruction features disabled")
-            self.log("  Download Docker Desktop: https://www.docker.com/products/docker-desktop")
+            self.log(f"  Download Docker Desktop: {DOCKER_DESKTOP_URL}")
     
     def _check_webodm_status(self):
         """Check and display WebODM status"""
@@ -315,7 +316,7 @@ class PhotogrammetryApp:
         status_msg = []
         if not status['docker_installed']:
             status_msg.append("❌ Docker is not installed. Please install Docker Desktop first.")
-            status_msg.append("   Download: https://www.docker.com/products/docker-desktop")
+            status_msg.append(f"   Download: {DOCKER_DESKTOP_URL}")
             # Disable WebODM controls
             self.start_webodm_btn.config(state='disabled')
             self.stop_webodm_btn.config(state='disabled')
@@ -356,7 +357,7 @@ class PhotogrammetryApp:
             messagebox.showerror(
                 "Docker Not Installed",
                 "Docker is not installed. Please install Docker Desktop first.\n\n" +
-                "Download from: https://www.docker.com/products/docker-desktop\n\n" +
+                f"Download from: {DOCKER_DESKTOP_URL}\n\n" +
                 "After installation, restart this application."
             )
             return

@@ -42,3 +42,7 @@ DEFAULT_JPEG_QUALITY = 2  # 1-31, lower is better
 DEFAULT_WEBODM_URL = "http://localhost:8000"
 DEFAULT_WEBODM_USERNAME = "admin"
 DEFAULT_WEBODM_PASSWORD = "admin"
+
+# External resources
+DOCKER_DESKTOP_URL = "https://www.docker.com/products/docker-desktop"
+

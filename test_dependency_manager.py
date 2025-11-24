@@ -50,11 +50,11 @@ def test_check_ffmpeg_installed(mock_run):
     
     # Test when FFmpeg is installed
     mock_run.return_value = Mock(returncode=0)
-    assert dm.check_ffmpeg_installed() == True
+    assert dm.check_ffmpeg_installed()
     
     # Test when FFmpeg is not installed
     mock_run.side_effect = FileNotFoundError()
-    assert dm.check_ffmpeg_installed() == False
+    assert not dm.check_ffmpeg_installed()
 
 
 @patch('subprocess.run')
@@ -66,11 +66,11 @@ def test_check_exiftool_installed(mock_run):
     
     # Test when ExifTool is installed
     mock_run.return_value = Mock(returncode=0)
-    assert dm.check_exiftool_installed() == True
+    assert dm.check_exiftool_installed()
     
     # Test when ExifTool is not installed
     mock_run.side_effect = FileNotFoundError()
-    assert dm.check_exiftool_installed() == False
+    assert not dm.check_exiftool_installed()
 
 
 @patch('subprocess.run')
@@ -82,11 +82,11 @@ def test_check_docker_installed(mock_run):
     
     # Test when Docker is installed
     mock_run.return_value = Mock(returncode=0)
-    assert dm.check_docker_installed() == True
+    assert dm.check_docker_installed()
     
     # Test when Docker is not installed
     mock_run.side_effect = FileNotFoundError()
-    assert dm.check_docker_installed() == False
+    assert not dm.check_docker_installed()
 
 
 def test_check_all_dependencies():
@@ -124,7 +124,7 @@ def test_download_with_progress(mock_urlretrieve):
         '/tmp/test.zip'
     )
     
-    assert result == True
+    assert result
     mock_urlretrieve.assert_called_once()
     
     # Test with progress callback
@@ -139,7 +139,7 @@ def test_download_with_progress(mock_urlretrieve):
         progress_callback=progress_callback
     )
     
-    assert result == True
+    assert result
 
 
 def test_url_constants():
