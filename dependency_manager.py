@@ -24,10 +24,9 @@ if sys.platform == 'win32':
 class DependencyManager:
     """Manages application dependencies"""
     
-    # ExifTool version - using Windows standalone executable
-    EXIFTOOL_VERSION = "12.76"
-    # Note: ExifTool Windows version uses format exiftool-VERSION.zip (not VERSION_64)
-    EXIFTOOL_URL = f"https://exiftool.org/exiftool-{EXIFTOOL_VERSION}.zip"
+    # ExifTool - using LATEST_64 for Windows 64-bit standalone executable
+    # This URL always points to the latest 64-bit version
+    EXIFTOOL_URL = "https://exiftool.org/exiftool-LATEST_64.zip"
     
     # FFmpeg essentials build
     FFMPEG_URL = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
@@ -369,18 +368,26 @@ class DependencyManager:
             if not self.download_with_progress(self.EXIFTOOL_URL, zip_path, progress_callback):
                 return False, "Failed to download ExifTool"
             
-            # Extract
+            # Extract and rename exiftool(-k).exe to exiftool.exe
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                zip_ref.extractall(exiftool_dir)
-            
-            # Rename exiftool(-k).exe to exiftool.exe
-            for file in os.listdir(exiftool_dir):
-                if file == 'exiftool(-k).exe':
-                    os.rename(
-                        os.path.join(exiftool_dir, file),
-                        os.path.join(exiftool_dir, 'exiftool.exe')
-                    )
-                    break
+                # Search for the exiftool(-k).exe file in the ZIP
+                exiftool_found = False
+                for member in zip_ref.namelist():
+                    if 'exiftool(-k).exe' in member:
+                        # Extract the file
+                        zip_ref.extract(member, path=exiftool_dir)
+                        
+                        # Get paths
+                        original_path = os.path.join(exiftool_dir, member)
+                        final_path = os.path.join(exiftool_dir, 'exiftool.exe')
+                        
+                        # Rename to exiftool.exe
+                        os.rename(original_path, final_path)
+                        exiftool_found = True
+                        break
+                
+                if not exiftool_found:
+                    return False, "ExifTool executable not found in downloaded archive"
             
             # Clean up
             os.remove(zip_path)

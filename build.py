@@ -17,9 +17,9 @@ import shutil
 import tempfile
 
 # Dependency versions and URLs
-EXIFTOOL_VERSION = "12.76"
-# Note: ExifTool Windows standalone uses format exiftool-VERSION.zip (not VERSION_64)
-EXIFTOOL_URL = f"https://exiftool.org/exiftool-{EXIFTOOL_VERSION}.zip"
+# ExifTool - using LATEST_64 for Windows 64-bit standalone executable
+# This URL always points to the latest 64-bit version
+EXIFTOOL_URL = "https://exiftool.org/exiftool-LATEST_64.zip"
 FFMPEG_URL = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
 
 
@@ -41,13 +41,26 @@ def download_exiftool():
         print(f"  URL: {EXIFTOOL_URL}")
         urllib.request.urlretrieve(EXIFTOOL_URL, zip_path)
         
+        # Extract and rename exiftool(-k).exe to exiftool.exe
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall(exiftool_dir)
-        
-        # Rename exiftool(-k).exe to exiftool.exe
-        original = os.path.join(exiftool_dir, "exiftool(-k).exe")
-        if os.path.exists(original):
-            os.rename(original, exiftool_exe)
+            # Search for the exiftool(-k).exe file in the ZIP
+            exiftool_found = False
+            for member in zip_ref.namelist():
+                if 'exiftool(-k).exe' in member:
+                    # Extract the file
+                    zip_ref.extract(member, path=exiftool_dir)
+                    
+                    # Get paths
+                    original_path = os.path.join(exiftool_dir, member)
+                    
+                    # Rename to exiftool.exe
+                    os.rename(original_path, exiftool_exe)
+                    exiftool_found = True
+                    break
+            
+            if not exiftool_found:
+                print("  ⚠ ExifTool executable not found in downloaded archive")
+                return None
         
         os.remove(zip_path)
         print(f"✓ ExifTool downloaded to {exiftool_exe}")
