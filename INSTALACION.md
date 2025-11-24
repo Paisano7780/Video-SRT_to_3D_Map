@@ -31,8 +31,8 @@ Solo necesitas instalar **Docker Desktop** si quieres usar las funciones de reco
    - **Tamaño:** ~500 MB de descarga
    - **Espacio en disco:** ~2-3 GB después de instalar
    - **Necesario para:** Crear mapas 3D con WebODM
-   - **Windows 10/11:** Compatible con WSL2
-   - **Instalación:** Ejecuta el instalador y sigue las instrucciones
+   - **Windows 10/11:** Requiere WSL 2 (Windows Subsystem for Linux 2)
+   - **Instalación:** Ahora disponible instalación automática desde la aplicación con backend WSL 2 (requiere privilegios de administrador)
 
 ## Instalación Paso a Paso
 
@@ -52,11 +52,39 @@ Solo necesitas instalar **Docker Desktop** si quieres usar las funciones de reco
    - ⚠️ Te avisa si Docker no está instalado
 
 #### Paso 3: Instalar Docker (Solo para Reconstrucción 3D)
-1. Descarga Docker Desktop: https://www.docker.com/products/docker-desktop
-2. Instala Docker Desktop
-3. Inicia Docker Desktop (icono en la bandeja del sistema)
-4. Espera a que Docker esté completamente iniciado (icono verde)
-5. Reinicia `DJI_3D_Mapper.exe`
+
+**Requisitos Previos:**
+- Windows 10 versión 1903 o superior (Build 18362+) o Windows 11
+- WSL 2 (Windows Subsystem for Linux 2) instalado
+  - Si no tienes WSL 2, la instalación automática intentará configurarlo
+  - Puedes verificar ejecutando `wsl --list --verbose` en PowerShell
+
+**Opción A: Instalación Automática (Recomendado)**
+
+1. Al iniciar la aplicación por primera vez, si Docker no está instalado, aparecerá un diálogo
+2. Selecciona "Sí" para instalar Docker Desktop automáticamente
+3. **IMPORTANTE:** Gestión de privilegios de administrador
+   - Si ya estás ejecutando como Administrador, la instalación procederá directamente
+   - Si NO estás como Administrador, aparecerá un diálogo UAC (Control de Cuentas de Usuario)
+   - Haz clic en "Sí" en el diálogo UAC para permitir la instalación
+   - Alternativamente, puedes ejecutar la aplicación como Administrador desde el inicio
+4. La aplicación descargará e instalará Docker Desktop con backend WSL 2 (~500 MB)
+5. Cuando termine, aparecerá un mensaje pidiendo que reinicies tu computadora
+6. **Reinicia tu computadora** (necesario para habilitar virtualización y WSL 2)
+7. Después del reinicio:
+   - Inicia Docker Desktop desde el menú de inicio
+   - Espera a que Docker esté completamente iniciado (icono verde)
+   - Reinicia `DJI_3D_Mapper.exe`
+
+**Opción B: Instalación Manual**
+
+1. Asegúrate de tener WSL 2 instalado
+2. Descarga Docker Desktop: https://www.docker.com/products/docker-desktop
+3. Instala Docker Desktop manualmente (selecciona WSL 2 como backend durante la instalación)
+4. Reinicia tu computadora si se solicita
+5. Inicia Docker Desktop (icono en la bandeja del sistema)
+6. Espera a que Docker esté completamente iniciado (icono verde)
+7. Reinicia `DJI_3D_Mapper.exe`
 
 ### Opción 2: Desde el Código Fuente
 
@@ -106,10 +134,12 @@ python main_app.py
   - La aplicación lo gestiona automáticamente
   - Se inicia y se detiene desde la aplicación
 
-- **Docker Desktop:** ⚠️ **DEBES INSTALARLO POR SEPARADO**
-  - Docker NO está incluido en la aplicación
+- **Docker Desktop:** ⚠️ **DEBES INSTALARLO POR SEPARADO (AHORA CON INSTALACIÓN AUTOMÁTICA)**
+  - Docker NO está incluido en la aplicación por defecto
   - Es necesario para que WebODM funcione
-  - Descarga desde: https://www.docker.com/products/docker-desktop
+  - **NUEVO:** La aplicación puede descargar e instalar Docker automáticamente
+  - Requiere privilegios de administrador y reinicio del sistema
+  - También puedes instalarlo manualmente desde: https://www.docker.com/products/docker-desktop
   - La aplicación te avisará si Docker no está instalado
 
 **¿Por qué Docker no está incluido?**
@@ -160,12 +190,30 @@ Cuando uses WebODM por primera vez:
 
 ### ❌ Error: "Docker is not installed"
 
-**Solución:**
-1. Descarga Docker Desktop: https://www.docker.com/products/docker-desktop
-2. Instala Docker Desktop
-3. Inicia Docker Desktop
-4. Espera a que el icono en la bandeja muestre "Docker Desktop is running"
-5. Haz clic en "Check Status" en la pestaña WebODM de la aplicación
+**Solución Automática (Recomendado):**
+1. Verifica que tienes Windows 10 versión 1903+ o Windows 11
+2. Asegúrate de que WSL 2 está instalado (ejecuta `wsl --install` en PowerShell como Administrador si es necesario)
+3. Ejecuta la aplicación (no necesita ser como Administrador inicialmente)
+4. Cuando aparezca el diálogo de Docker no encontrado, selecciona "Sí" para instalación automática
+5. Aparecerá un diálogo UAC - haz clic en "Sí" para permitir la instalación
+6. Espera a que se descargue e instale Docker Desktop con backend WSL 2
+7. Cuando se solicite, reinicia tu computadora
+8. Después del reinicio, inicia Docker Desktop desde el menú de inicio
+9. Espera a que el icono en la bandeja muestre "Docker Desktop is running"
+10. Reinicia la aplicación
+
+**Si la instalación automática falla:**
+- Verifica que permitiste el diálogo UAC
+- Verifica que WSL 2 está instalado correctamente
+- Intenta ejecutar la aplicación como Administrador desde el inicio (clic derecho → "Ejecutar como administrador")
+
+**Solución Manual:**
+1. Instala WSL 2 si no lo tienes: `wsl --install` en PowerShell como Administrador
+2. Descarga Docker Desktop: https://www.docker.com/products/docker-desktop
+3. Instala Docker Desktop (asegúrate de seleccionar WSL 2 backend)
+4. Inicia Docker Desktop
+5. Espera a que el icono en la bandeja muestre "Docker Desktop is running"
+6. Haz clic en "Check Status" en la pestaña WebODM de la aplicación
 
 ### ❌ Error: "Docker is not running"
 
@@ -196,6 +244,36 @@ git submodule update --init --recursive
 
 **P: ¿Necesito internet después de instalar?**
 R: Solo para la primera ejecución de WebODM (descarga imágenes Docker). Después puedes usar la aplicación sin internet (excepto WebODM).
+
+**P: ¿La aplicación puede instalar Docker automáticamente?**
+R: Sí, la aplicación puede descargar e instalar Docker Desktop automáticamente con backend WSL 2. Necesitas:
+- Windows 10 versión 1903+ o Windows 11
+- WSL 2 instalado (la aplicación intentará configurarlo)
+- Aproximadamente 500 MB de descarga
+- Un reinicio del sistema después de la instalación
+- Conexión a internet
+- Aceptar el diálogo UAC cuando aparezca
+
+**P: ¿Qué es WSL 2 y por qué lo necesito?**
+R: WSL 2 (Windows Subsystem for Linux 2) es una capa de compatibilidad de Linux para Windows. Docker Desktop lo usa como backend porque:
+- Es más rápido que Hyper-V
+- Usa menos recursos del sistema
+- Es más estable y eficiente
+- Es el backend recomendado por Docker para Windows 10/11
+
+**P: ¿Cómo instalo WSL 2?**
+R: 
+1. Abre PowerShell como Administrador
+2. Ejecuta: `wsl --install`
+3. Reinicia tu computadora
+4. WSL 2 estará listo para usar con Docker
+
+**P: ¿Por qué necesito ejecutar como Administrador para instalar Docker?**
+R: Docker Desktop requiere privilegios de administrador para:
+- Instalar componentes del sistema (WSL 2)
+- Configurar servicios de Windows
+- Modificar configuraciones de red
+La aplicación solicitará elevación UAC automáticamente si no estás ejecutando como Administrador.
 
 **P: ¿Puedo usar la aplicación sin Docker?**
 R: Sí, pero solo para procesar imágenes. No podrás crear mapas 3D.

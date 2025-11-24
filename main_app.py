@@ -317,31 +317,20 @@ class PhotogrammetryApp:
         if status['exiftool']['installed']:
             self.log("✓ ExifTool is ready")
         
-        # Check Docker for WebODM - offer installation if missing
+        # Check Docker for WebODM - offer automated installation if missing
         if not status['docker']['installed']:
             self.log("⚠ Docker not installed - 3D reconstruction features disabled")
             self.log(f"  {self._get_docker_install_message()}")
             
-            # Offer to guide user through Docker installation
-            response = messagebox.askyesno(
-                "Docker Not Found",
-                "Docker Desktop is not installed.\n\n"
-                "Docker is required for 3D map reconstruction features.\n\n"
-                "Would you like guidance on installing Docker Desktop now?",
-                icon='info'
-            )
+            # Use the new automated installation method
+            success, message = self.dependency_manager.ensure_docker_is_installed(self.root)
             
-            if response:
-                # Use the new prompt_docker_installation method
-                if self.dependency_manager.prompt_docker_installation(self.root):
-                    # User claims to have installed Docker, verify
-                    success, message = self.dependency_manager.verify_docker_installation(self.root)
-                    if success:
-                        self.log("✓ Docker Desktop verified and running!")
-                        messagebox.showinfo("Success", message)
-                    else:
-                        self.log("✗ Docker verification failed")
-                        messagebox.showwarning("Docker Verification", message)
+            if success:
+                self.log("✓ Docker Desktop installation initiated")
+                self.log(message)
+            else:
+                self.log("✗ Docker installation not completed")
+                self.log(f"  {message}")
     
     def _check_webodm_status(self):
         """Check and display WebODM status"""

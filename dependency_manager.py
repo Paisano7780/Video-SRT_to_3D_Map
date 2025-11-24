@@ -31,6 +31,9 @@ class DependencyManager:
     # FFmpeg essentials build
     FFMPEG_URL = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
     
+    # Docker Desktop installation parameters with WSL 2 backend
+    DOCKER_INSTALL_PARAMS = "install --quiet --accept-license --backend=wsl-2"
+    
     def __init__(self, app_dir: Optional[str] = None):
         """
         Initialize dependency manager
@@ -97,6 +100,322 @@ class DependencyManager:
             return result.returncode == 0
         except (FileNotFoundError, subprocess.TimeoutExpired):
             return False
+    
+    def check_docker_desktop_exists(self) -> bool:
+        """
+        Check if Docker Desktop executable exists at standard installation path
+        
+        Returns:
+            True if Docker Desktop.exe exists
+        """
+        from config import DOCKER_DESKTOP_INSTALL_PATH
+        return os.path.exists(DOCKER_DESKTOP_INSTALL_PATH)
+    
+    def is_admin(self) -> bool:
+        """
+        Check if the current process has administrator privileges (Windows only)
+        
+        Returns:
+            True if running with admin privileges
+        """
+        if sys.platform != 'win32':
+            return False
+        
+        try:
+            import ctypes
+            return ctypes.windll.shell32.IsUserAnAdmin() != 0
+        except Exception:
+            return False
+    
+    def download_docker_installer(self, progress_callback=None) -> Optional[str]:
+        """
+        Download Docker Desktop installer
+        
+        Args:
+            progress_callback: Optional callback(current, total, percentage)
+            
+        Returns:
+            Path to downloaded installer, or None if failed
+        """
+        from config import DOCKER_DESKTOP_INSTALLER_URL, DOCKER_DESKTOP_INSTALLER_FILENAME
+        
+        installer_path = os.path.join(tempfile.gettempdir(), DOCKER_DESKTOP_INSTALLER_FILENAME)
+        
+        # If already downloaded, return existing path
+        if os.path.exists(installer_path):
+            return installer_path
+        
+        try:
+            if not self.download_with_progress(
+                DOCKER_DESKTOP_INSTALLER_URL, 
+                installer_path, 
+                progress_callback
+            ):
+                return None
+            
+            return installer_path
+        except Exception as e:
+            # Return None on error - caller will handle the failure
+            return None
+    
+    def elevate_and_run_installer(self, installer_path: str) -> Tuple[bool, str]:
+        """
+        Run Docker installer with UAC elevation if needed
+        
+        Args:
+            installer_path: Path to Docker Desktop installer
+            
+        Returns:
+            Tuple of (success, message)
+        """
+        if sys.platform != 'win32':
+            return False, "UAC elevation is only supported on Windows"
+        
+        try:
+            import ctypes
+            
+            # ShellExecute with 'runas' verb to trigger UAC elevation
+            # Parameters: hwnd, operation, file, parameters, directory, show_cmd
+            ret = ctypes.windll.shell32.ShellExecuteW(
+                None,
+                "runas",  # Trigger UAC elevation
+                installer_path,
+                self.DOCKER_INSTALL_PARAMS,  # Installation parameters with WSL 2 backend
+                None,
+                1  # SW_SHOWNORMAL
+            )
+            
+            # ShellExecute returns > 32 on success
+            if ret > 32:
+                return True, "Installation started with elevated privileges"
+            else:
+                return False, f"Failed to elevate installer (error code: {ret})"
+                
+        except Exception as e:
+            return False, f"UAC elevation failed: {str(e)}"
+    
+    def install_docker_desktop(self, installer_path: str, parent_window=None) -> Tuple[bool, str]:
+        """
+        Install Docker Desktop using silent installation with WSL 2 backend
+        
+        Args:
+            installer_path: Path to Docker Desktop installer
+            parent_window: Optional parent window for dialogs
+            
+        Returns:
+            Tuple of (success, message)
+        """
+        if sys.platform != 'win32':
+            return False, "Docker Desktop automated installation is only supported on Windows"
+        
+        if not os.path.exists(installer_path):
+            return False, f"Installer not found at: {installer_path}"
+        
+        # Check for admin privileges
+        if not self.is_admin():
+            # Try to elevate privileges using UAC
+            messagebox.showinfo(
+                "Administrator Privileges Required",
+                "Docker Desktop installation requires administrator privileges.\n\n"
+                "A User Account Control (UAC) prompt will appear.\n"
+                "Please click 'Yes' to allow the installation to proceed.",
+                icon='info'
+            )
+            
+            success, message = self.elevate_and_run_installer(installer_path)
+            
+            if not success:
+                return False, (
+                    "Failed to run installer with administrator privileges.\n\n"
+                    "Please try:\n"
+                    "1. Close this application\n"
+                    "2. Right-click the application icon\n"
+                    "3. Select 'Run as administrator'\n"
+                    "4. Try the installation again\n\n"
+                    f"Error: {message}"
+                )
+            
+            # Installation started with elevation, inform user to wait
+            return True, (
+                "Docker Desktop installation has been started with administrator privileges.\n\n"
+                "Please wait for the installation to complete.\n"
+                "This may take 5-10 minutes."
+            )
+        
+        try:
+            # Execute silent installation with WSL 2 backend and license acceptance
+            # Run the installation command using subprocess.run
+            # We use a list to avoid shell injection
+            # Split the parameters from the constant
+            install_params = self.DOCKER_INSTALL_PARAMS.split()
+            result = subprocess.run(
+                ['cmd', '/c', 'start', '/wait', '', installer_path] + install_params,
+                capture_output=True,
+                timeout=600,  # 10 minutes timeout
+                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
+            )
+            
+            if result.returncode == 0:
+                return True, "Docker Desktop installation completed successfully with WSL 2 backend"
+            else:
+                error_msg = result.stderr.decode('utf-8', errors='ignore') if result.stderr else "Unknown error"
+                return False, (
+                    f"Installation failed with code {result.returncode}: {error_msg}\n\n"
+                    "Please ensure:\n"
+                    "• You are running as Administrator\n"
+                    "• WSL 2 is installed on your system\n"
+                    "• Your Windows version supports WSL 2 (Windows 10 version 1903 or higher)"
+                )
+                
+        except subprocess.TimeoutExpired:
+            return False, "Installation timed out after 10 minutes"
+        except Exception as e:
+            return False, (
+                f"Installation failed: {str(e)}\n\n"
+                "Please ensure:\n"
+                "• You are running as Administrator\n"
+                "• WSL 2 is installed on your system"
+            )
+    
+    def prompt_restart_for_docker(self, parent_window=None) -> bool:
+        """
+        Show dialog informing user that a restart is required for Docker
+        
+        Args:
+            parent_window: Optional parent window for dialogs
+            
+        Returns:
+            True if user acknowledges restart requirement
+        """
+        message = (
+            "Docker Desktop installation requires a system restart.\n\n"
+            "This is necessary to enable Windows virtualization features (Hyper-V or WSL2).\n\n"
+            "What to do next:\n"
+            "1. Click OK to acknowledge this message\n"
+            "2. Save any open work\n"
+            "3. Restart your computer\n"
+            "4. After restart, start Docker Desktop from the Start Menu\n"
+            "5. Wait for Docker to fully start (green icon in system tray)\n"
+            "6. Restart this application\n\n"
+            "Note: The first Docker Desktop startup after installation may take several minutes."
+        )
+        
+        messagebox.showinfo(
+            "System Restart Required",
+            message,
+            icon='info'
+        )
+        
+        return True
+    
+    def ensure_docker_is_installed(self, parent_window=None) -> Tuple[bool, str]:
+        """
+        Ensure Docker Desktop is installed, offering automated installation if not found
+        
+        Args:
+            parent_window: Optional parent window for dialogs
+            
+        Returns:
+            Tuple of (success, message)
+        """
+        # First check if Docker Desktop executable exists
+        if self.check_docker_desktop_exists():
+            # Check if Docker service is available
+            if self.check_docker_installed():
+                if self.check_docker_running():
+                    return True, "Docker Desktop is installed and running"
+                else:
+                    return False, (
+                        "Docker Desktop is installed but not running.\n\n"
+                        "Please start Docker Desktop from the Start Menu."
+                    )
+            else:
+                return False, (
+                    "Docker Desktop is installed but Docker service is not available.\n\n"
+                    "You may need to restart your computer or reinstall Docker Desktop."
+                )
+        
+        # Docker Desktop not found - offer automated installation
+        if sys.platform != 'win32':
+            from config import DOCKER_DESKTOP_URL
+            return False, f"Please install Docker Desktop manually from: {DOCKER_DESKTOP_URL}"
+        
+        # Ask user if they want to install Docker Desktop automatically
+        response = messagebox.askyesno(
+            "Docker Desktop Not Found",
+            "Docker Desktop is required for 3D reconstruction features.\n\n"
+            "Would you like to download and install Docker Desktop automatically?\n\n"
+            "This will:\n"
+            "• Download Docker Desktop installer (~500MB)\n"
+            "• Install Docker Desktop silently\n"
+            "• Require administrator privileges\n"
+            "• Require a system restart\n\n"
+            "Click 'Yes' to proceed with automated installation.\n"
+            "Click 'No' for manual installation instructions.",
+            icon='question'
+        )
+        
+        if not response:
+            # User declined automated installation, offer manual installation
+            self.prompt_docker_installation(parent_window)
+            return False, "User declined automated installation"
+        
+        # Check admin privileges early
+        if not self.is_admin():
+            messagebox.showerror(
+                "Administrator Privileges Required",
+                "This application must be run as Administrator to install Docker Desktop.\n\n"
+                "Please:\n"
+                "1. Close this application\n"
+                "2. Right-click the application icon\n"
+                "3. Select 'Run as administrator'\n"
+                "4. Try again",
+                icon='error'
+            )
+            return False, "Administrator privileges required for installation"
+        
+        # Download installer
+        messagebox.showinfo(
+            "Downloading Docker Desktop",
+            "Docker Desktop installer will now be downloaded.\n\n"
+            "This may take several minutes depending on your internet connection.\n\n"
+            "Click OK to continue.",
+            icon='info'
+        )
+        
+        installer_path = self.download_docker_installer()
+        
+        if not installer_path:
+            return False, "Failed to download Docker Desktop installer"
+        
+        # Confirm installation
+        confirm = messagebox.askyesno(
+            "Ready to Install",
+            "Docker Desktop installer has been downloaded.\n\n"
+            "The installation will:\n"
+            "• Install Docker Desktop silently\n"
+            "• May take 5-10 minutes\n"
+            "• Require a system restart afterward\n\n"
+            "Click 'Yes' to begin installation.\n"
+            "Click 'No' to cancel.",
+            icon='question'
+        )
+        
+        if not confirm:
+            return False, "Installation cancelled by user"
+        
+        # Install Docker Desktop
+        success, message = self.install_docker_desktop(installer_path, parent_window)
+        
+        if success:
+            # Show restart dialog
+            self.prompt_restart_for_docker(parent_window)
+            return True, (
+                "Docker Desktop has been installed successfully.\n\n"
+                "Please restart your computer and then start Docker Desktop before using 3D features."
+            )
+        else:
+            return False, f"Docker Desktop installation failed: {message}"
     
     def prompt_docker_installation(self, parent_window=None) -> bool:
         """
