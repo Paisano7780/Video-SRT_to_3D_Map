@@ -7,6 +7,7 @@ import os
 import subprocess
 from typing import Optional
 import tempfile
+import sys
 
 
 class ExifInjector:
@@ -17,6 +18,14 @@ class ExifInjector:
         
     def _find_exiftool(self) -> str:
         """Find exiftool executable"""
+        # Check if running as PyInstaller bundle
+        if getattr(sys, 'frozen', False):
+            # Running as compiled executable
+            bundle_dir = sys._MEIPASS
+            bundled_exiftool = os.path.join(bundle_dir, 'exiftool.exe')
+            if os.path.exists(bundled_exiftool):
+                return bundled_exiftool
+        
         # Check if exiftool is in PATH
         try:
             result = subprocess.run(
@@ -31,7 +40,9 @@ class ExifInjector:
             common_paths = [
                 r'C:\Program Files\exiftool\exiftool.exe',
                 r'C:\exiftool\exiftool.exe',
-                r'exiftool.exe'
+                r'exiftool.exe',
+                # Also check in the same directory as the executable
+                os.path.join(os.path.dirname(sys.executable), 'exiftool.exe')
             ]
             
             for path in common_paths:

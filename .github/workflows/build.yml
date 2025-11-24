@@ -36,7 +36,6 @@ jobs:
     name: Build Windows Executable
     needs: test
     runs-on: windows-latest
-    if: github.event_name == 'push'
     permissions:
       contents: write  # Needed for creating releases
     

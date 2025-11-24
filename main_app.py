@@ -49,27 +49,27 @@ class PhotogrammetryApp:
     def _setup_ui(self):
         """Setup the user interface"""
         # Create notebook (tabs)
-        notebook = ttk.Notebook(self.root)
-        notebook.pack(fill='both', expand=True, padx=10, pady=10)
+        self.notebook = ttk.Notebook(self.root)
+        self.notebook.pack(fill='both', expand=True, padx=10, pady=10)
         
         # Tab 1: Input
-        input_frame = ttk.Frame(notebook)
-        notebook.add(input_frame, text="1. Input Files")
+        input_frame = ttk.Frame(self.notebook)
+        self.notebook.add(input_frame, text="1. Input Files")
         self._setup_input_tab(input_frame)
         
         # Tab 2: Processing
-        process_frame = ttk.Frame(notebook)
-        notebook.add(process_frame, text="2. Processing")
+        process_frame = ttk.Frame(self.notebook)
+        self.notebook.add(process_frame, text="2. Processing")
         self._setup_process_tab(process_frame)
         
         # Tab 3: WebODM
-        webodm_frame = ttk.Frame(notebook)
-        notebook.add(webodm_frame, text="3. WebODM")
+        webodm_frame = ttk.Frame(self.notebook)
+        self.notebook.add(webodm_frame, text="3. WebODM")
         self._setup_webodm_tab(webodm_frame)
         
         # Tab 4: Output
-        output_frame = ttk.Frame(notebook)
-        notebook.add(output_frame, text="4. Output")
+        output_frame = ttk.Frame(self.notebook)
+        self.notebook.add(output_frame, text="4. Output")
         self._setup_output_tab(output_frame)
         
         # Log console at bottom
@@ -116,6 +116,17 @@ class PhotogrammetryApp:
             justify='left', foreground='gray'
         )
         instructions.pack(padx=10, pady=10, anchor='w')
+        
+        # Next button to go to processing tab
+        next_btn = ttk.Button(
+            parent, text="Next: Configure Processing →",
+            command=self._go_to_processing_tab
+        )
+        next_btn.pack(pady=20)
+    
+    def _go_to_processing_tab(self):
+        """Navigate to the processing tab"""
+        self.notebook.select(1)  # Select tab index 1 (Processing tab)
         
     def _setup_process_tab(self, parent):
         """Setup processing options tab"""
@@ -289,7 +300,11 @@ class PhotogrammetryApp:
             self.stop_webodm_btn.config(state='disabled')
         
         self.webodm_status_label.config(text="\n".join(status_msg))
-        self.log("\n".join(status_msg))
+        # Only log to console if explicitly called (not on startup)
+        if not hasattr(self, '_initial_check_done'):
+            self._initial_check_done = True
+        else:
+            self.log("\n".join(status_msg))
     
     def _start_webodm_service(self):
         """Start WebODM service in background thread"""
