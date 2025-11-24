@@ -54,7 +54,7 @@ def add_to_path(directory):
         # Get current PATH
         try:
             current_path, _ = winreg.QueryValueEx(key, 'PATH')
-        except WindowsError:
+        except OSError:
             current_path = ''
         
         # Add directory if not already in PATH
@@ -100,6 +100,7 @@ def install_ffmpeg(install_dir):
     os.makedirs(ffmpeg_dir, exist_ok=True)
     
     # Download FFmpeg essentials build
+    # Using gyan.dev as it's a reliable source for Windows FFmpeg builds
     url = 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip'
     zip_path = os.path.join(tempfile.gettempdir(), 'ffmpeg.zip')
     
@@ -150,7 +151,8 @@ def install_exiftool(install_dir):
     exiftool_dir = os.path.join(install_dir, 'exiftool')
     os.makedirs(exiftool_dir, exist_ok=True)
     
-    # Download ExifTool
+    # Download ExifTool from official source
+    # Version is pinned to 12.76 for stability, update as needed
     url = 'https://exiftool.org/exiftool-12.76_64.zip'
     zip_path = os.path.join(tempfile.gettempdir(), 'exiftool.zip')
     

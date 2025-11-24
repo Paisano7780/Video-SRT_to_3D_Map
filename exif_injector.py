@@ -21,10 +21,14 @@ class ExifInjector:
         # Check if running as PyInstaller bundle
         if getattr(sys, 'frozen', False):
             # Running as compiled executable
-            bundle_dir = sys._MEIPASS
-            bundled_exiftool = os.path.join(bundle_dir, 'exiftool.exe')
-            if os.path.exists(bundled_exiftool):
-                return bundled_exiftool
+            try:
+                bundle_dir = sys._MEIPASS
+                bundled_exiftool = os.path.join(bundle_dir, 'exiftool.exe')
+                if os.path.exists(bundled_exiftool):
+                    return bundled_exiftool
+            except AttributeError:
+                # sys._MEIPASS not available in this PyInstaller configuration
+                pass
         
         # Check if exiftool is in PATH
         try:
