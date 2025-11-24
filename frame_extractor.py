@@ -25,17 +25,16 @@ class FrameExtractor:
         ffprobe_path = shutil.which('ffprobe')
         ffmpeg_path = shutil.which('ffmpeg')
         
+        error_message = (
+            "Please install FFmpeg and ensure it's in your system PATH.\n"
+            "Download from: https://ffmpeg.org/download.html"
+        )
+        
         if not ffprobe_path:
-            raise RuntimeError(
-                "ffprobe not found. Please install FFmpeg and ensure it's in your system PATH.\n"
-                "Download from: https://ffmpeg.org/download.html"
-            )
+            raise RuntimeError(f"ffprobe not found. {error_message}")
         
         if not ffmpeg_path:
-            raise RuntimeError(
-                "ffmpeg not found. Please install FFmpeg and ensure it's in your system PATH.\n"
-                "Download from: https://ffmpeg.org/download.html"
-            )
+            raise RuntimeError(f"ffmpeg not found. {error_message}")
         
     def get_video_info(self) -> dict:
         """Get video information using ffprobe"""

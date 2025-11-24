@@ -123,8 +123,9 @@ class TestFrameExtractor:
                         
                         try:
                             extractor.extract_frames(str(output_dir))
-                        except:
-                            pass  # We don't care if extraction fails, just that dir is created
+                        except (RuntimeError, FileNotFoundError):
+                            # Ignore extraction errors - we only care that directory is created
+                            pass
                         
                         # Check that directory was created
                         assert output_dir.exists()
