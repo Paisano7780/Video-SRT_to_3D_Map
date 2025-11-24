@@ -53,14 +53,15 @@ jobs:
     
     - name: Install ExifTool
       run: |
-        # Download latest ExifTool Windows executable
-        Invoke-WebRequest -Uri "https://exiftool.org/exiftool-12.76_64.zip" -OutFile "exiftool.zip"
+        # Download ExifTool using curl to bypass firewall issues
+        curl.exe -L https://exiftool.org/exiftool-12.76_64.zip -o exiftool.zip
         Expand-Archive -Path "exiftool.zip" -DestinationPath "exiftool_temp"
         # Move the executable and rename
         New-Item -ItemType Directory -Force -Path "exiftool"
         Move-Item -Path "exiftool_temp\exiftool(-k).exe" -Destination "exiftool\exiftool.exe" -Force
         Remove-Item -Path "exiftool_temp" -Recurse -Force
         Remove-Item -Path "exiftool.zip" -Force
+      shell: pwsh
     
     - name: Build executable
       run: |
