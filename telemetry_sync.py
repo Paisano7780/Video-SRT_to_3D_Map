@@ -72,6 +72,10 @@ class TelemetrySynchronizer:
         Returns:
             Interpolated angles
         """
+        # Ensure angles is a numeric array (convert object arrays with None to float with NaN)
+        if angles.dtype == object:
+            angles = pd.to_numeric(pd.Series(angles), errors='coerce').values
+        
         # Convert to radians
         valid_mask = ~np.isnan(angles)
         
