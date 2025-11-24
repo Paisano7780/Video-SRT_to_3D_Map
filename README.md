@@ -323,8 +323,6 @@ Video-SRT_to_3D_Map/
 - WebODM API: https://github.com/OpenDroneMap/WebODM
 - CesiumJS: https://cesium.com/platform/cesiumjs/
 - ExifTool: https://exiftool.org/
-- WebODM API: https://github.com/OpenDroneMap/WebODM
-- ExifTool: https://exiftool.org/
 
 ## License
 

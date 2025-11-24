@@ -790,8 +790,8 @@ class PhotogrammetryApp:
             if hasattr(self, 'cesium_viewer') and self.cesium_viewer:
                 self.cesium_viewer.stop_server()
                 self.log("✓ Viewer server stopped")
-        except Exception as e:
-            print(f"Cleanup error: {e}")
+        except (AttributeError, OSError) as e:
+            print(f"Cleanup warning: {e}")
 
 
 def main():

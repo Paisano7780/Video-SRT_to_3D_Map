@@ -303,9 +303,10 @@ class CesiumViewer:
         if not self.viewer_dir:
             return False, "Viewer directory not prepared"
         
+        original_dir = os.getcwd()
+        
         try:
             # Change to viewer directory
-            original_dir = os.getcwd()
             os.chdir(self.viewer_dir)
             
             # Create simple HTTP server
@@ -334,7 +335,8 @@ class CesiumViewer:
         except Exception as e:
             try:
                 os.chdir(original_dir)
-            except:
+            except (OSError, FileNotFoundError):
+                # Original directory might not exist anymore
                 pass
             return False, f"Failed to start server: {str(e)}"
     
@@ -358,8 +360,9 @@ class CesiumViewer:
             try:
                 self.server.shutdown()
                 self.server.server_close()
-            except:
-                pass
+            except (OSError, AttributeError) as e:
+                # Server might already be closed or invalid
+                print(f"Warning: Error stopping server: {e}")
             self.server = None
             self.server_thread = None
     
