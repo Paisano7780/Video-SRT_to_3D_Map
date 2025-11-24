@@ -13,6 +13,8 @@ jobs:
   test:
     name: Run Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     
     steps:
     - uses: actions/checkout@v3
@@ -36,6 +38,8 @@ jobs:
     needs: test
     runs-on: windows-latest
     if: github.event_name == 'push'
+    permissions:
+      contents: write  # Needed for creating releases
     
     steps:
     - uses: actions/checkout@v3
