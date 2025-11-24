@@ -110,41 +110,41 @@ class WebODMClient:
                         files.append(
                             ('images', (os.path.basename(img_path), fh, 'image/jpeg'))
                         )
-            
-            # Default processing options
-            default_options = {
-                'dsm': True,
-                'dtm': True,
-                'orthophoto-resolution': 2,
-                'feature-quality': 'high',
-                'pc-quality': 'high',
-                'mesh-octree-depth': 11,
-                'mesh-size': 200000,
-            }
-            
-            if options:
-                default_options.update(options)
-            
-            # Prepare form data
-            data = {
-                'name': task_name,
-                'options': json.dumps([
-                    {'name': k, 'value': v} 
-                    for k, v in default_options.items()
-                ])
-            }
-            
+                
+                # Default processing options
+                default_options = {
+                    'dsm': True,
+                    'dtm': True,
+                    'orthophoto-resolution': 2,
+                    'feature-quality': 'high',
+                    'pc-quality': 'high',
+                    'mesh-octree-depth': 11,
+                    'mesh-size': 200000,
+                }
+                
+                if options:
+                    default_options.update(options)
+                
+                # Prepare form data
+                data = {
+                    'name': task_name,
+                    'options': json.dumps([
+                        {'name': k, 'value': v} 
+                        for k, v in default_options.items()
+                    ])
+                }
+                
                 print(f"⏳ Uploading {len(files)} images...")
                 response = self.session.post(url, files=files, data=data)
                 response.raise_for_status()
+                
+                task_uuid = response.json()['id']
+                print(f"✓ Task created (UUID: {task_uuid})")
+                return task_uuid
             finally:
                 # Close file handles
                 for fh in file_handles:
                     fh.close()
-            
-            task_uuid = response.json()['id']
-            print(f"✓ Task created (UUID: {task_uuid})")
-            return task_uuid
             
         except requests.exceptions.RequestException as e:
             print(f"✗ Failed to upload images: {e}")
