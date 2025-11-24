@@ -384,13 +384,9 @@ class PhotogrammetryApp:
             )
             return
         
-        if not self.webodm_manager.check_docker_running():
-            messagebox.showerror(
-                "Docker Not Running",
-                "Docker is installed but not running.\n\n" +
-                "Please start Docker Desktop and try again."
-            )
-            return
+        # Note: We don't do a strict pre-check for Docker running here.
+        # The start_webodm() method will wait patiently for Docker to be ready.
+        # This allows the user to start the process even if Docker is still starting up.
         
         def start_task():
             self.log("Starting WebODM... This may take several minutes on first run.")

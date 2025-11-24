@@ -15,6 +15,9 @@ import platform
 class WebODMManager:
     """Manager for embedded WebODM instance"""
     
+    # Maximum time to wait for Docker to start (60 seconds)
+    DOCKER_TIMEOUT = 60
+    
     def __init__(self, webodm_path: Optional[str] = None):
         """
         Initialize WebODM manager
@@ -71,6 +74,52 @@ class WebODMManager:
         except (subprocess.TimeoutExpired, FileNotFoundError):
             return False
     
+    def wait_for_docker_ready(self) -> bool:
+        """
+        Wait for Docker service to be ready with timeout and retry logic.
+        Implements a patient waiting mechanism that retries for up to 60 seconds
+        before giving up, preventing immediate failures when Docker is starting.
+        
+        Returns:
+            True if Docker is ready and operational, False if timeout expired
+        """
+        start_time = time.time()
+        
+        print("Verificando el estado del servicio Docker. Esto puede tardar unos segundos...")
+        
+        while time.time() - start_time < self.DOCKER_TIMEOUT:
+            try:
+                # Attempt to run docker info command without raising exception on failure
+                result = subprocess.run(
+                    ['docker', 'info'],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    timeout=5
+                )
+                
+                # Check if Docker is ready: return code is 0 and no connection errors
+                if result.returncode == 0 and "Cannot connect to the Docker daemon" not in result.stderr:
+                    print("✅ Docker está listo y operativo.")
+                    return True
+                    
+            except FileNotFoundError:
+                # Docker executable not found in PATH (unlikely case)
+                print("ERROR: docker.exe no se encontró en el sistema PATH.")
+                return False
+            except subprocess.TimeoutExpired:
+                # Command timed out, continue retrying
+                pass
+            
+            # Wait and retry
+            print("Docker aún no está listo. Reintentando en 5 segundos...")
+            time.sleep(5)
+        
+        # Timeout expired
+        print(f"❌ ERROR: Docker no se pudo conectar después de {self.DOCKER_TIMEOUT} segundos.")
+        print("Por favor, asegúrese de que Docker Desktop está abierto y el icono está verde.")
+        return False
+    
     def check_webodm_exists(self) -> bool:
         """
         Check if WebODM directory exists
@@ -114,7 +163,8 @@ class WebODMManager:
         if not self.check_docker_installed():
             return False, "Docker is not installed. Please install Docker Desktop first."
         
-        if not self.check_docker_running():
+        # Wait for Docker to be ready (with timeout and retry logic)
+        if not self.wait_for_docker_ready():
             return False, "Docker is not running. Please start Docker Desktop."
         
         if not self.check_webodm_exists():

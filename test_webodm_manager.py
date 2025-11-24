@@ -4,8 +4,10 @@ Tests for WebODM Manager
 
 import pytest
 import os
+import subprocess
 from unittest.mock import patch, MagicMock
 from webodm_manager import WebODMManager
+
 
 
 class TestWebODMManager:
@@ -120,12 +122,12 @@ class TestDockerErrorHandling:
         assert "Please install Docker Desktop first" in message
     
     @patch('webodm_manager.WebODMManager.check_docker_installed')  # Applied second (first param)
-    @patch('webodm_manager.WebODMManager.check_docker_running')   # Applied first (second param)
-    def test_start_webodm_docker_not_running(self, mock_running, mock_installed):
+    @patch('webodm_manager.WebODMManager.wait_for_docker_ready')   # Applied first (second param)
+    def test_start_webodm_docker_not_running(self, mock_wait, mock_installed):
         """Test start_webodm returns proper error when Docker is not running"""
         # Docker is installed but not running
         mock_installed.return_value = True
-        mock_running.return_value = False
+        mock_wait.return_value = False
         
         manager = WebODMManager()
         success, message = manager.start_webodm()
@@ -210,3 +212,163 @@ class TestWebODMErrorMessages:
         
         assert success is False
         assert "Docker is not installed" in message
+
+
+class TestDockerWaitTimeout:
+    """Test the new wait_for_docker_ready timeout and retry functionality"""
+    
+    @patch('subprocess.run')
+    @patch('time.sleep')
+    def test_wait_for_docker_ready_success_immediate(self, mock_sleep, mock_run):
+        """Test wait_for_docker_ready succeeds immediately when Docker is ready"""
+        # Docker is ready on first attempt
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stderr = ""
+        mock_run.return_value = mock_result
+        
+        manager = WebODMManager()
+        result = manager.wait_for_docker_ready()
+        
+        assert result is True
+        # Should not sleep if Docker is ready immediately
+        mock_sleep.assert_not_called()
+        mock_run.assert_called_once()
+    
+    @patch('subprocess.run')
+    @patch('time.sleep')
+    @patch('time.time')
+    def test_wait_for_docker_ready_success_after_retries(self, mock_time, mock_sleep, mock_run):
+        """Test wait_for_docker_ready succeeds after a few retries"""
+        # Simulate Docker becoming ready after 2 retries
+        mock_time.side_effect = [0, 5, 10, 15]  # Start, after 1st retry, after 2nd retry, success
+        
+        # First two attempts fail, third succeeds
+        fail_result = MagicMock()
+        fail_result.returncode = 1
+        fail_result.stderr = "Cannot connect to the Docker daemon"
+        
+        success_result = MagicMock()
+        success_result.returncode = 0
+        success_result.stderr = ""
+        
+        mock_run.side_effect = [fail_result, fail_result, success_result]
+        
+        manager = WebODMManager()
+        result = manager.wait_for_docker_ready()
+        
+        assert result is True
+        assert mock_run.call_count == 3
+        assert mock_sleep.call_count == 2  # Slept twice before succeeding
+        mock_sleep.assert_called_with(5)  # 5 second intervals
+    
+    @patch('subprocess.run')
+    @patch('time.sleep')
+    @patch('time.time')
+    def test_wait_for_docker_ready_timeout(self, mock_time, mock_sleep, mock_run):
+        """Test wait_for_docker_ready fails after timeout"""
+        # Simulate time passing: 0, 5, 10, 15, ..., 60, 65
+        mock_time.side_effect = list(range(0, 70, 5))
+        
+        # Docker never becomes ready
+        fail_result = MagicMock()
+        fail_result.returncode = 1
+        fail_result.stderr = "Cannot connect to the Docker daemon"
+        mock_run.return_value = fail_result
+        
+        manager = WebODMManager()
+        result = manager.wait_for_docker_ready()
+        
+        assert result is False
+        # Should have tried multiple times over 60 seconds
+        assert mock_run.call_count >= 11  # At least 11 attempts over 60 seconds
+    
+    @patch('subprocess.run')
+    def test_wait_for_docker_ready_file_not_found(self, mock_run):
+        """Test wait_for_docker_ready handles docker executable not found"""
+        mock_run.side_effect = FileNotFoundError()
+        
+        manager = WebODMManager()
+        result = manager.wait_for_docker_ready()
+        
+        assert result is False
+    
+    @patch('subprocess.run')
+    @patch('time.sleep')
+    @patch('time.time')
+    def test_wait_for_docker_ready_timeout_expired_exception(self, mock_time, mock_sleep, mock_run):
+        """Test wait_for_docker_ready handles subprocess timeout exceptions"""
+        mock_time.side_effect = [0, 5, 10, 15]
+        
+        # First attempts timeout, then Docker becomes ready
+        success_result = MagicMock()
+        success_result.returncode = 0
+        success_result.stderr = ""
+        
+        mock_run.side_effect = [
+            subprocess.TimeoutExpired('docker', 5),
+            subprocess.TimeoutExpired('docker', 5),
+            success_result
+        ]
+        
+        manager = WebODMManager()
+        result = manager.wait_for_docker_ready()
+        
+        assert result is True
+        assert mock_sleep.call_count == 2
+    
+    @patch('subprocess.run')
+    def test_wait_for_docker_ready_checks_stderr_for_daemon_error(self, mock_run):
+        """Test wait_for_docker_ready checks for daemon connection error in stderr"""
+        # Return code 0 but stderr has daemon error (should fail)
+        fail_result = MagicMock()
+        fail_result.returncode = 0
+        fail_result.stderr = "Cannot connect to the Docker daemon at unix:///var/run/docker.sock"
+        
+        success_result = MagicMock()
+        success_result.returncode = 0
+        success_result.stderr = ""
+        
+        mock_run.side_effect = [fail_result, success_result]
+        
+        manager = WebODMManager()
+        # Need to patch time and sleep to avoid actual waiting
+        with patch('time.sleep'), patch('time.time', side_effect=[0, 1, 2]):
+            result = manager.wait_for_docker_ready()
+        
+        assert result is True
+        assert mock_run.call_count == 2
+    
+    @patch('webodm_manager.WebODMManager.wait_for_docker_ready')
+    @patch('webodm_manager.WebODMManager.check_docker_installed')
+    def test_start_webodm_uses_wait_for_docker_ready(self, mock_installed, mock_wait):
+        """Test that start_webodm uses wait_for_docker_ready instead of check_docker_running"""
+        mock_installed.return_value = True
+        mock_wait.return_value = False  # Docker not ready
+        
+        manager = WebODMManager()
+        success, message = manager.start_webodm()
+        
+        assert success is False
+        assert "Docker is not running" in message
+        # Verify wait_for_docker_ready was called
+        mock_wait.assert_called_once()
+    
+    @patch('webodm_manager.WebODMManager.check_webodm_exists')
+    @patch('webodm_manager.WebODMManager.wait_for_docker_ready')
+    @patch('webodm_manager.WebODMManager.check_docker_installed')
+    @patch('webodm_manager.WebODMManager.is_webodm_running')
+    def test_start_webodm_waits_patiently_for_docker(self, mock_running, mock_installed, 
+                                                      mock_wait, mock_exists):
+        """Test that start_webodm waits patiently for Docker before proceeding"""
+        mock_installed.return_value = True
+        mock_wait.return_value = True  # Docker becomes ready
+        mock_exists.return_value = False  # WebODM doesn't exist (to trigger early exit)
+        
+        manager = WebODMManager()
+        success, message = manager.start_webodm()
+        
+        # Should call wait_for_docker_ready
+        mock_wait.assert_called_once()
+        # Should fail because WebODM doesn't exist, but we got past the Docker check
+        assert "WebODM not found" in message
