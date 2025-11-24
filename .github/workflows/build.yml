@@ -53,14 +53,58 @@ jobs:
     
     - name: Install ExifTool
       run: |
-        # Download ExifTool using curl to bypass firewall issues
-        curl.exe -L https://exiftool.org/exiftool-12.76_64.zip -o exiftool.zip
-        Expand-Archive -Path "exiftool.zip" -DestinationPath "exiftool_temp"
-        # Move the executable and rename
-        New-Item -ItemType Directory -Force -Path "exiftool"
-        Move-Item -Path "exiftool_temp\exiftool(-k).exe" -Destination "exiftool\exiftool.exe" -Force
-        Remove-Item -Path "exiftool_temp" -Recurse -Force
-        Remove-Item -Path "exiftool.zip" -Force
+        # Download ExifTool using Invoke-WebRequest with proper error handling
+        Write-Host "Downloading ExifTool..."
+        try {
+          Invoke-WebRequest -Uri "https://exiftool.org/exiftool-12.76_64.zip" `
+            -OutFile "exiftool.zip" `
+            -ErrorAction Stop `
+            -MaximumRetryCount 3 `
+            -RetryIntervalSec 5
+          
+          # Validate the downloaded file
+          $fileSize = (Get-Item "exiftool.zip").Length
+          Write-Host "Downloaded file size: $fileSize bytes"
+          
+          if ($fileSize -lt 1000000) {
+            throw "Downloaded file is too small ($fileSize bytes). Expected at least 1MB. File may be corrupted or an HTML error page."
+          }
+          
+          Write-Host "Download successful, extracting..."
+          Expand-Archive -Path "exiftool.zip" -DestinationPath "exiftool_temp" -Force
+          
+          # Move the executable and rename
+          New-Item -ItemType Directory -Force -Path "exiftool"
+          Move-Item -Path "exiftool_temp\exiftool(-k).exe" -Destination "exiftool\exiftool.exe" -Force
+          Remove-Item -Path "exiftool_temp" -Recurse -Force
+          Remove-Item -Path "exiftool.zip" -Force
+          
+          Write-Host "ExifTool installation completed successfully"
+        } catch {
+          Write-Error "Failed to download or install ExifTool: $_"
+          Write-Host "Attempting alternative download method..."
+          
+          # Fallback: Try with curl as alternative
+          curl.exe -L -f -S -o exiftool.zip https://exiftool.org/exiftool-12.76_64.zip
+          if ($LASTEXITCODE -eq 0) {
+            $fileSize = (Get-Item "exiftool.zip").Length
+            if ($fileSize -gt 1000000) {
+              Write-Host "Alternative download succeeded, extracting..."
+              Expand-Archive -Path "exiftool.zip" -DestinationPath "exiftool_temp" -Force
+              New-Item -ItemType Directory -Force -Path "exiftool"
+              Move-Item -Path "exiftool_temp\exiftool(-k).exe" -Destination "exiftool\exiftool.exe" -Force
+              Remove-Item -Path "exiftool_temp" -Recurse -Force
+              Remove-Item -Path "exiftool.zip" -Force
+              Write-Host "ExifTool installation completed successfully via fallback method"
+            } else {
+              Write-Error "Alternative download also failed. File size: $fileSize bytes"
+              exit 1
+            }
+          } else {
+            Write-Error "Alternative download method failed"
+            exit 1
+          }
+        }
       shell: pwsh
     
     - name: Build executable
