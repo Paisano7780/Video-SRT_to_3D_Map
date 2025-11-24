@@ -368,6 +368,12 @@ class PhotogrammetryApp:
             self.log("Starting DJI Video Processing Pipeline")
             self.log("=" * 60)
             
+            # Ensure buffer directory exists
+            buffer_dir = self.buffer_path.get()
+            if buffer_dir:
+                os.makedirs(buffer_dir, exist_ok=True)
+                self.log(f"Buffer directory: {buffer_dir}")
+            
             # Step 1: Extract video information
             self.update_progress(5, "Analyzing video...")
             extractor = FrameExtractor(self.video_path.get())
