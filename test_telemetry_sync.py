@@ -99,3 +99,32 @@ class TestTelemetrySynchronizer:
         
         flight_type = TelemetrySynchronizer.classify_flight_type(telemetry_df)
         assert flight_type == "Orbit/Structure"
+    
+    def test_object_dtype_with_none_values(self):
+        """Test handling of object dtype columns with None values (Windows error case)"""
+        # Create DataFrame with object dtype columns containing None values
+        # This simulates the error case from the Windows testing bug
+        telemetry_df = pd.DataFrame({
+            'timestamp': [0.0, 2.0, 4.0],
+            'latitude': [-34.0, -34.2, -34.4],
+            'longitude': [-58.0, -58.2, -58.4],
+            'altitude': [100.0, 110.0, 120.0],
+            'rel_altitude': [50.0, 55.0, 60.0],
+            'gimbal_pitch': [-90.0, -85.0, -80.0],
+            'gimbal_yaw': pd.Series([None, 10.0, 20.0], dtype=object),
+            'yaw': pd.Series([0.0, None, 90.0], dtype=object)
+        })
+        
+        synchronizer = TelemetrySynchronizer(telemetry_df)
+        frame_timestamps = [1.0, 3.0]
+        
+        # Should not raise TypeError about isnan
+        result = synchronizer.synchronize_and_interpolate(frame_timestamps)
+        
+        # Verify result shape and that interpolation worked
+        assert len(result) == 2
+        assert all(result['timestamp'] == frame_timestamps)
+        # Yaw should be interpolated even with None values
+        assert not result['yaw'].isna().all()
+        # gimbal_yaw should have interpolated value at timestamp 1.0
+        assert not pd.isna(result['gimbal_yaw'].iloc[0])

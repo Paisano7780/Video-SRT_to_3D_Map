@@ -39,6 +39,17 @@ class SRTParser:
             raise ValueError(f"No telemetry data found in {self.srt_file_path}")
         
         df = pd.DataFrame(self.telemetry_data)
+        
+        # Ensure numeric columns are float64, not object type
+        # This prevents errors when None values create object-type columns
+        numeric_columns = [
+            'latitude', 'longitude', 'altitude', 'rel_altitude',
+            'gimbal_pitch', 'gimbal_yaw', 'yaw', 'iso', 'shutter'
+        ]
+        for col in numeric_columns:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+        
         return df
     
     def _parse_block(self, block: str) -> Optional[Dict]:
