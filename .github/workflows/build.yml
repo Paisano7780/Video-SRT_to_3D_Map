@@ -53,55 +53,60 @@ jobs:
     
     - name: Install ExifTool
       run: |
+        # Define constants
+        $MIN_FILE_SIZE = 1000000  # 1MB minimum expected file size
+        $EXIFTOOL_URL = "https://exiftool.org/exiftool-12.76_64.zip"
+        
+        # Function to extract and install ExifTool
+        function Install-ExifTool {
+          Write-Host "Extracting ExifTool..."
+          Expand-Archive -Path "exiftool.zip" -DestinationPath "exiftool_temp" -Force
+          New-Item -ItemType Directory -Force -Path "exiftool"
+          Move-Item -Path "exiftool_temp\exiftool(-k).exe" -Destination "exiftool\exiftool.exe" -Force
+          Remove-Item -Path "exiftool_temp" -Recurse -Force
+          Remove-Item -Path "exiftool.zip" -Force
+          Write-Host "ExifTool installation completed successfully"
+        }
+        
+        # Function to validate downloaded file
+        function Test-DownloadedFile {
+          $fileSize = (Get-Item "exiftool.zip").Length
+          Write-Host "Downloaded file size: $fileSize bytes"
+          
+          if ($fileSize -lt $MIN_FILE_SIZE) {
+            throw "Downloaded file is too small ($fileSize bytes). Expected at least $MIN_FILE_SIZE bytes. File may be corrupted or an HTML error page."
+          }
+          return $true
+        }
+        
         # Download ExifTool using Invoke-WebRequest with proper error handling
-        Write-Host "Downloading ExifTool..."
+        Write-Host "Downloading ExifTool from $EXIFTOOL_URL..."
         try {
-          Invoke-WebRequest -Uri "https://exiftool.org/exiftool-12.76_64.zip" `
+          Invoke-WebRequest -Uri $EXIFTOOL_URL `
             -OutFile "exiftool.zip" `
             -ErrorAction Stop `
             -MaximumRetryCount 3 `
             -RetryIntervalSec 5
           
-          # Validate the downloaded file
-          $fileSize = (Get-Item "exiftool.zip").Length
-          Write-Host "Downloaded file size: $fileSize bytes"
+          Test-DownloadedFile
+          Install-ExifTool
           
-          if ($fileSize -lt 1000000) {
-            throw "Downloaded file is too small ($fileSize bytes). Expected at least 1MB. File may be corrupted or an HTML error page."
-          }
-          
-          Write-Host "Download successful, extracting..."
-          Expand-Archive -Path "exiftool.zip" -DestinationPath "exiftool_temp" -Force
-          
-          # Move the executable and rename
-          New-Item -ItemType Directory -Force -Path "exiftool"
-          Move-Item -Path "exiftool_temp\exiftool(-k).exe" -Destination "exiftool\exiftool.exe" -Force
-          Remove-Item -Path "exiftool_temp" -Recurse -Force
-          Remove-Item -Path "exiftool.zip" -Force
-          
-          Write-Host "ExifTool installation completed successfully"
         } catch {
-          Write-Error "Failed to download or install ExifTool: $_"
-          Write-Host "Attempting alternative download method..."
+          Write-Error "Primary download failed: $_"
+          Write-Host "Attempting alternative download method with curl..."
           
           # Fallback: Try with curl as alternative
-          curl.exe -L -f -S -o exiftool.zip https://exiftool.org/exiftool-12.76_64.zip
+          curl.exe -L -f -S -o exiftool.zip $EXIFTOOL_URL
           if ($LASTEXITCODE -eq 0) {
-            $fileSize = (Get-Item "exiftool.zip").Length
-            if ($fileSize -gt 1000000) {
-              Write-Host "Alternative download succeeded, extracting..."
-              Expand-Archive -Path "exiftool.zip" -DestinationPath "exiftool_temp" -Force
-              New-Item -ItemType Directory -Force -Path "exiftool"
-              Move-Item -Path "exiftool_temp\exiftool(-k).exe" -Destination "exiftool\exiftool.exe" -Force
-              Remove-Item -Path "exiftool_temp" -Recurse -Force
-              Remove-Item -Path "exiftool.zip" -Force
-              Write-Host "ExifTool installation completed successfully via fallback method"
-            } else {
-              Write-Error "Alternative download also failed. File size: $fileSize bytes"
+            try {
+              Test-DownloadedFile
+              Install-ExifTool
+            } catch {
+              Write-Error "Alternative download validation failed: $_"
               exit 1
             }
           } else {
-            Write-Error "Alternative download method failed"
+            Write-Error "Alternative download method failed with exit code: $LASTEXITCODE"
             exit 1
           }
         }
