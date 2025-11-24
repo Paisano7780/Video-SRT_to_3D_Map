@@ -119,9 +119,9 @@ class TestDockerErrorHandling:
         assert "Docker is not installed" in message
         assert "Please install Docker Desktop first" in message
     
-    @patch('webodm_manager.WebODMManager.check_docker_installed')
     @patch('webodm_manager.WebODMManager.check_docker_running')
-    def test_start_webodm_docker_not_running(self, mock_running, mock_installed):
+    @patch('webodm_manager.WebODMManager.check_docker_installed')
+    def test_start_webodm_docker_not_running(self, mock_installed, mock_running):
         """Test start_webodm returns proper error when Docker is not running"""
         # Docker is installed but not running
         mock_installed.return_value = True
@@ -134,10 +134,10 @@ class TestDockerErrorHandling:
         assert "Docker is not running" in message
         assert "Please start Docker Desktop" in message
     
-    @patch('webodm_manager.WebODMManager.check_webodm_exists')
-    @patch('webodm_manager.WebODMManager.check_docker_installed')
     @patch('webodm_manager.WebODMManager.check_docker_running')
-    def test_start_webodm_directory_not_found(self, mock_running, mock_installed, mock_webodm_exists):
+    @patch('webodm_manager.WebODMManager.check_docker_installed')
+    @patch('webodm_manager.WebODMManager.check_webodm_exists')
+    def test_start_webodm_directory_not_found(self, mock_webodm_exists, mock_installed, mock_running):
         """Test start_webodm returns proper error when WebODM directory is missing"""
         # Docker is fine but WebODM directory doesn't exist
         mock_installed.return_value = True
