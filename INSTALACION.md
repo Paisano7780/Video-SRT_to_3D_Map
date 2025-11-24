@@ -32,7 +32,7 @@ Solo necesitas instalar **Docker Desktop** si quieres usar las funciones de reco
    - **Espacio en disco:** ~2-3 GB después de instalar
    - **Necesario para:** Crear mapas 3D con WebODM
    - **Windows 10/11:** Compatible con WSL2
-   - **Instalación:** Ejecuta el instalador y sigue las instrucciones
+   - **Instalación:** Ahora disponible instalación automática desde la aplicación (requiere privilegios de administrador)
 
 ## Instalación Paso a Paso
 
@@ -52,11 +52,32 @@ Solo necesitas instalar **Docker Desktop** si quieres usar las funciones de reco
    - ⚠️ Te avisa si Docker no está instalado
 
 #### Paso 3: Instalar Docker (Solo para Reconstrucción 3D)
+
+**Opción A: Instalación Automática (Recomendado)**
+
+1. Al iniciar la aplicación por primera vez, si Docker no está instalado, aparecerá un diálogo
+2. Selecciona "Sí" para instalar Docker Desktop automáticamente
+3. **IMPORTANTE:** La aplicación debe ejecutarse como Administrador para instalar Docker
+   - Si no está en modo Administrador, cierra la aplicación
+   - Haz clic derecho en `DJI_3D_Mapper.exe`
+   - Selecciona "Ejecutar como administrador"
+   - Inicia la instalación automática de Docker nuevamente
+4. La aplicación descargará e instalará Docker Desktop (~500 MB)
+5. Cuando termine, aparecerá un mensaje pidiendo que reinicies tu computadora
+6. **Reinicia tu computadora** (necesario para habilitar virtualización)
+7. Después del reinicio:
+   - Inicia Docker Desktop desde el menú de inicio
+   - Espera a que Docker esté completamente iniciado (icono verde)
+   - Reinicia `DJI_3D_Mapper.exe`
+
+**Opción B: Instalación Manual**
+
 1. Descarga Docker Desktop: https://www.docker.com/products/docker-desktop
-2. Instala Docker Desktop
-3. Inicia Docker Desktop (icono en la bandeja del sistema)
-4. Espera a que Docker esté completamente iniciado (icono verde)
-5. Reinicia `DJI_3D_Mapper.exe`
+2. Instala Docker Desktop manualmente
+3. Reinicia tu computadora si se solicita
+4. Inicia Docker Desktop (icono en la bandeja del sistema)
+5. Espera a que Docker esté completamente iniciado (icono verde)
+6. Reinicia `DJI_3D_Mapper.exe`
 
 ### Opción 2: Desde el Código Fuente
 
@@ -106,10 +127,12 @@ python main_app.py
   - La aplicación lo gestiona automáticamente
   - Se inicia y se detiene desde la aplicación
 
-- **Docker Desktop:** ⚠️ **DEBES INSTALARLO POR SEPARADO**
-  - Docker NO está incluido en la aplicación
+- **Docker Desktop:** ⚠️ **DEBES INSTALARLO POR SEPARADO (AHORA CON INSTALACIÓN AUTOMÁTICA)**
+  - Docker NO está incluido en la aplicación por defecto
   - Es necesario para que WebODM funcione
-  - Descarga desde: https://www.docker.com/products/docker-desktop
+  - **NUEVO:** La aplicación puede descargar e instalar Docker automáticamente
+  - Requiere privilegios de administrador y reinicio del sistema
+  - También puedes instalarlo manualmente desde: https://www.docker.com/products/docker-desktop
   - La aplicación te avisará si Docker no está instalado
 
 **¿Por qué Docker no está incluido?**
@@ -160,7 +183,16 @@ Cuando uses WebODM por primera vez:
 
 ### ❌ Error: "Docker is not installed"
 
-**Solución:**
+**Solución Automática (Recomendado):**
+1. Ejecuta la aplicación como Administrador (clic derecho → "Ejecutar como administrador")
+2. Cuando aparezca el diálogo de Docker no encontrado, selecciona "Sí" para instalación automática
+3. Espera a que se descargue e instale Docker Desktop
+4. Cuando se solicite, reinicia tu computadora
+5. Después del reinicio, inicia Docker Desktop desde el menú de inicio
+6. Espera a que el icono en la bandeja muestre "Docker Desktop is running"
+7. Reinicia la aplicación
+
+**Solución Manual:**
 1. Descarga Docker Desktop: https://www.docker.com/products/docker-desktop
 2. Instala Docker Desktop
 3. Inicia Docker Desktop
@@ -196,6 +228,20 @@ git submodule update --init --recursive
 
 **P: ¿Necesito internet después de instalar?**
 R: Solo para la primera ejecución de WebODM (descarga imágenes Docker). Después puedes usar la aplicación sin internet (excepto WebODM).
+
+**P: ¿La aplicación puede instalar Docker automáticamente?**
+R: Sí, la aplicación puede descargar e instalar Docker Desktop automáticamente. Necesitas:
+- Ejecutar la aplicación como Administrador (clic derecho → "Ejecutar como administrador")
+- Aproximadamente 500 MB de descarga
+- Un reinicio del sistema después de la instalación
+- Conexión a internet
+
+**P: ¿Por qué necesito ejecutar como Administrador para instalar Docker?**
+R: Docker Desktop requiere privilegios de administrador para:
+- Instalar componentes del sistema (Hyper-V o WSL2)
+- Configurar servicios de Windows
+- Modificar configuraciones de red
+Sin privilegios de administrador, la instalación automática no funcionará.
 
 **P: ¿Puedo usar la aplicación sin Docker?**
 R: Sí, pero solo para procesar imágenes. No podrás crear mapas 3D.
