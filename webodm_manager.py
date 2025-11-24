@@ -105,7 +105,7 @@ class WebODMManager:
                     
             except FileNotFoundError:
                 # Docker executable not found in PATH (unlikely case)
-                print("ERROR: docker.exe no se encontró en el sistema PATH.")
+                print("ERROR: Docker no se encontró en el sistema PATH.")
                 return False
             except subprocess.TimeoutExpired:
                 # Command timed out, continue retrying
