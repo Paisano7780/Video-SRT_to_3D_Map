@@ -57,8 +57,13 @@ All requirements from the problem statement have been implemented and tested.
 - **Geotagged Images**: All metadata embedded in JPEGs
 
 ### 8. WebODM Integration ✅
+- **Embedded Service**: WebODM included as git submodule
+- **Lifecycle Management**: Start/stop WebODM from GUI
+- **Docker Integration**: Automatic Docker container management
+- **Status Monitoring**: Real-time WebODM status display
+- **Auto-start**: Automatically starts WebODM when needed
 - **API Client**: Complete REST API implementation
-- **Authentication**: Token-based auth
+- **Authentication**: Token-based auth with default credentials
 - **Project Management**: Create projects and tasks
 - **Image Upload**: Batch upload with multipart/form-data
 - **Progress Monitoring**: Real-time status updates
@@ -87,9 +92,10 @@ All requirements from the problem statement have been implemented and tested.
 - **Threading**: Non-blocking UI during processing
 
 ### 12. Testing Infrastructure ✅
-- **Unit Tests**: 10 tests covering core functionality
+- **Unit Tests**: 18 tests covering core functionality
   - SRT parsing (5 tests)
   - Synchronization (5 tests)
+  - WebODM manager (8 tests)
 - **Test Coverage**: All critical paths tested
 - **Sample Data**: Realistic DJI SRT file for testing
 - **CI/CD Ready**: pytest integration
@@ -147,6 +153,13 @@ webodm_client.py (220 lines)
 ├── Project/task management
 ├── Upload/download
 └── Progress monitoring
+
+webodm_manager.py (237 lines)
+├── WebODMManager: Lifecycle manager
+├── Docker detection and validation
+├── Start/stop WebODM service
+├── Status monitoring
+└── Auto-start functionality
 ```
 
 ### Data Flow
@@ -188,8 +201,16 @@ test_telemetry_sync.py::TestTelemetrySynchronizer::test_circular_interpolation P
 test_telemetry_sync.py::TestTelemetrySynchronizer::test_multiple_frames PASSED
 test_telemetry_sync.py::TestTelemetrySynchronizer::test_classify_nadir_flight PASSED
 test_telemetry_sync.py::TestTelemetrySynchronizer::test_classify_orbit_flight PASSED
+test_webodm_manager.py::TestWebODMManager::test_initialization PASSED
+test_webodm_manager.py::TestWebODMManager::test_custom_path PASSED
+test_webodm_manager.py::TestWebODMManager::test_check_docker_installed PASSED
+test_webodm_manager.py::TestWebODMManager::test_check_docker_running PASSED
+test_webodm_manager.py::TestWebODMManager::test_check_webodm_exists PASSED
+test_webodm_manager.py::TestWebODMManager::test_is_webodm_running PASSED
+test_webodm_manager.py::TestWebODMManager::test_get_status PASSED
+test_webodm_manager.py::TestWebODMManager::test_webodm_path_resolves_correctly PASSED
 ================================================
-10 passed in 0.49s
+18 passed in 0.47s
 ================================================
 ```
 
@@ -200,7 +221,7 @@ test_telemetry_sync.py::TestTelemetrySynchronizer::test_classify_orbit_flight PA
 - numpy >= 1.24.0
 - pyexiftool >= 0.5.5
 - requests >= 2.31.0
-- tkinterdnd2 >= 0.3.0
+- docker >= 6.1.0
 - google-api-python-client >= 2.0.0
 - pytest >= 7.4.0
 - pyinstaller >= 5.13.0
@@ -208,7 +229,8 @@ test_telemetry_sync.py::TestTelemetrySynchronizer::test_classify_orbit_flight PA
 ### External Tools
 - FFmpeg (video processing)
 - ExifTool (metadata injection)
-- WebODM (3D reconstruction)
+- Docker (container runtime for WebODM)
+- WebODM (3D reconstruction - embedded as submodule)
 
 ## CI/CD Pipeline
 
@@ -247,9 +269,10 @@ Additional suggestions:
 ## Known Limitations
 
 1. **Google Drive**: Integration prepared but not fully implemented (OAuth flows need UI)
-2. **Platform**: Windows only (tkinter, ExifTool paths)
+2. **Platform**: Cross-platform (Windows/Linux/Mac) with tkinter
 3. **FFmpeg**: Must be installed separately and in PATH
-4. **WebODM**: Requires separate installation/server
+4. **Docker**: Required for WebODM - must install Docker Desktop
+5. **WebODM First Run**: Initial Docker image download can take 10-15 minutes
 
 ## Development Notes
 
@@ -304,17 +327,22 @@ Video-SRT_to_3D_Map/
 ├── sample_data/
 │   ├── DJI_0001.SRT          # Sample telemetry
 │   └── README.md             # Sample data docs
+├── webodm/                    # WebODM submodule
+│   └── (WebODM repository)   # Embedded WebODM
 ├── main_app.py               # GUI application
 ├── srt_parser.py             # SRT parsing
 ├── frame_extractor.py        # Video processing
 ├── telemetry_sync.py         # Synchronization
 ├── exif_injector.py          # Metadata injection
 ├── webodm_client.py          # WebODM API
+├── webodm_manager.py         # WebODM lifecycle manager
 ├── config.py                 # Configuration
 ├── build.py                  # Build script
 ├── test_srt_parser.py        # SRT tests
 ├── test_telemetry_sync.py    # Sync tests
+├── test_webodm_manager.py    # WebODM manager tests
 ├── requirements.txt          # Dependencies
+├── .gitmodules               # Git submodule config
 ├── .gitignore                # Git ignore rules
 ├── README.md                 # Main documentation
 ├── QUICKSTART.md             # Quick start guide

@@ -35,9 +35,13 @@ A comprehensive Windows application for processing DJI Mini 3 drone videos and c
 - **FFmpeg**: Required for video frame extraction
   - Download from: https://ffmpeg.org/download.html
   - Add to system PATH
+- **Docker**: Required for embedded WebODM
+  - Download from: https://www.docker.com/products/docker-desktop
+  - Docker Desktop must be running for 3D map creation
 - **ExifTool**: Bundled with the application
-- **WebODM**: Local or remote instance
-  - Quick start: https://github.com/OpenDroneMap/WebODM
+- **WebODM**: Embedded in the application
+  - Included as a submodule from https://github.com/OpenDroneMap/WebODM
+  - Automatically managed by the application
 
 ## Installation
 
@@ -49,15 +53,21 @@ A comprehensive Windows application for processing DJI Mini 3 drone videos and c
 
 ### Option 2: Run from Source
 ```bash
-# Clone repository
-git clone https://github.com/Paisano7780/Video-SRT_to_3D_Map.git
+# Clone repository with submodules
+git clone --recurse-submodules https://github.com/Paisano7780/Video-SRT_to_3D_Map.git
 cd Video-SRT_to_3D_Map
+
+# If already cloned without submodules, initialize them:
+git submodule update --init --recursive
 
 # Install Python dependencies
 pip install -r requirements.txt
 
 # Install FFmpeg (add to PATH)
 # Download from https://ffmpeg.org/
+
+# Install Docker Desktop
+# Download from https://www.docker.com/products/docker-desktop
 
 # Run application
 python main_app.py
@@ -90,13 +100,13 @@ The pipeline will:
 
 ### Step 4: WebODM Integration
 1. Go to **"3. WebODM"** tab
-2. Enter WebODM connection details:
-   - URL: `http://localhost:8000` (default for local)
-   - Username: `admin` (default)
-   - Password: `admin` (default)
-3. Click **"Test Connection"** to verify
-4. Click **"Create 3D Map"**
-5. Wait for processing (can take 30 minutes to several hours depending on image count and quality settings)
+2. The embedded WebODM status will be displayed automatically
+3. If WebODM is not running, click **"Start WebODM"** (first start may take several minutes to download Docker images)
+4. Once WebODM is running, click **"Create 3D Map"**
+5. The application will automatically start WebODM if needed
+6. Wait for processing (can take 30 minutes to several hours depending on image count and quality settings)
+
+**Note:** WebODM runs in Docker containers managed by the application. Ensure Docker Desktop is running before using 3D map creation.
 
 ### Step 5: Export Results
 1. Go to **"4. Output"** tab
@@ -159,10 +169,22 @@ The application parses DJI SRT format with regex patterns:
 - Place `exiftool.exe` in the application directory
 - Or install and add to system PATH
 
-### "WebODM connection failed"
-- Ensure WebODM is running
-- Check URL, username, and password
-- For local instance: `docker-compose up` in WebODM directory
+### "Docker not found" or "Docker not running"
+- Install Docker Desktop from https://www.docker.com/products/docker-desktop
+- Start Docker Desktop application
+- Wait for Docker to fully start (icon in system tray should show running)
+- Restart the application
+
+### "WebODM not found"
+- Ensure you cloned the repository with submodules: `git clone --recurse-submodules`
+- If already cloned, run: `git submodule update --init --recursive`
+- Check that the `webodm` directory exists in the application folder
+
+### "WebODM failed to start"
+- Ensure Docker Desktop is running
+- Check available disk space (WebODM needs at least 10GB)
+- Check Docker logs for errors
+- Try manually starting WebODM: `cd webodm && ./webodm.sh start` (Linux/Mac) or use Git Bash on Windows
 
 ### "SRT duration mismatch"
 - Video and SRT files may not match
