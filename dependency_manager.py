@@ -152,7 +152,7 @@ class DependencyManager:
             
             return installer_path
         except Exception as e:
-            print(f"Failed to download Docker installer: {e}")
+            # Return None on error - caller will handle the failure
             return None
     
     def install_docker_desktop(self, installer_path: str, parent_window=None) -> Tuple[bool, str]:
@@ -186,15 +186,17 @@ class DependencyManager:
         
         try:
             # Execute silent installation
-            # Using start /wait to ensure we wait for the installer to complete
-            install_cmd = f'start /wait "" "{installer_path}" install --quiet'
+            # Note: On Windows, we need to use shell=True for the 'start' command
+            # to work properly, but we validate the installer_path exists first
+            # The installer_path comes from tempfile.gettempdir() which is safe
             
-            # Run the installation command
+            # Run the installation command using subprocess.run
+            # We use a list to avoid shell injection, but 'start' requires shell on Windows
             result = subprocess.run(
-                install_cmd,
-                shell=True,
+                ['cmd', '/c', 'start', '/wait', '', installer_path, 'install', '--quiet'],
                 capture_output=True,
-                timeout=600  # 10 minutes timeout
+                timeout=600,  # 10 minutes timeout
+                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
             )
             
             if result.returncode == 0:
@@ -287,8 +289,9 @@ class DependencyManager:
         )
         
         if not response:
-            # User declined automated installation
-            return self.prompt_docker_installation(parent_window) and False or (False, "User declined automated installation")
+            # User declined automated installation, offer manual installation
+            self.prompt_docker_installation(parent_window)
+            return False, "User declined automated installation"
         
         # Check admin privileges early
         if not self.is_admin():
