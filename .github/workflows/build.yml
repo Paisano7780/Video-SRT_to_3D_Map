@@ -75,7 +75,7 @@ jobs:
       shell: pwsh
     
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: DJI_3D_Mapper
         path: dist/DJI_3D_Mapper.exe
