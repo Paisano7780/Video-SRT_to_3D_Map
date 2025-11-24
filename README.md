@@ -83,7 +83,7 @@ python main_app.py
 1. Open the application
 2. Navigate to **"1. Input Files"** tab
 3. Select video file (SRT will auto-detect if named correctly)
-4. Choose buffer directory for geotagged images
+4. Choose buffer directory for geotagged images (the directory will be created automatically if it doesn't exist)
 
 ### Step 3: Processing
 1. Go to **"2. Processing"** tab
@@ -158,6 +158,23 @@ The application parses DJI SRT format with regex patterns:
 - Camera settings: ISO, Shutter Speed
 
 ## Troubleshooting
+
+### "El sistema no puede encontrar el archivo especificado" (Windows)
+This error occurs when FFmpeg is not properly installed or accessible in the system PATH.
+
+**Solution:**
+1. Download FFmpeg from https://www.gyan.dev/ffmpeg/builds/ (choose `ffmpeg-release-essentials.zip`)
+2. Extract to `C:\ffmpeg`
+3. Add `C:\ffmpeg\bin` to system PATH:
+   - Right-click "This PC" → Properties → Advanced System Settings
+   - Click "Environment Variables"
+   - Under "System variables", select "Path" and click "Edit"
+   - Click "New" and add `C:\ffmpeg\bin`
+   - Click "OK" on all dialogs
+4. Restart your computer or at least restart the application
+5. Verify with: `ffmpeg -version` in Command Prompt
+
+The application now checks for FFmpeg on startup and provides a helpful error message if not found.
 
 ### "FFmpeg not found"
 - Install FFmpeg from https://ffmpeg.org/

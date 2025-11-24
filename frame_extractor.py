@@ -5,6 +5,8 @@ Extracts frames from video files using ffmpeg
 
 import subprocess
 import os
+import sys
+import shutil
 from typing import Optional
 import json
 
@@ -16,6 +18,23 @@ class FrameExtractor:
         self.video_path = video_path
         self.video_duration = None
         self.fps = None
+        self._check_ffmpeg_available()
+    
+    def _check_ffmpeg_available(self):
+        """Check if ffmpeg and ffprobe are available"""
+        ffprobe_path = shutil.which('ffprobe')
+        ffmpeg_path = shutil.which('ffmpeg')
+        
+        error_message = (
+            "Please install FFmpeg and ensure it's in your system PATH.\n"
+            "Download from: https://ffmpeg.org/download.html"
+        )
+        
+        if not ffprobe_path:
+            raise RuntimeError(f"ffprobe not found. {error_message}")
+        
+        if not ffmpeg_path:
+            raise RuntimeError(f"ffmpeg not found. {error_message}")
         
     def get_video_info(self) -> dict:
         """Get video information using ffprobe"""
@@ -29,7 +48,14 @@ class FrameExtractor:
                 self.video_path
             ]
             
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            # On Windows, use shell=True to properly find ffprobe in PATH
+            result = subprocess.run(
+                cmd, 
+                capture_output=True, 
+                text=True, 
+                check=True,
+                shell=(sys.platform == 'win32')
+            )
             info = json.loads(result.stdout)
             
             # Extract video stream info
@@ -91,11 +117,13 @@ class FrameExtractor:
         
         try:
             # Run ffmpeg
+            # On Windows, use shell=True to properly find ffmpeg in PATH
             result = subprocess.run(
                 cmd, 
                 capture_output=True, 
                 text=True,
-                check=True
+                check=True,
+                shell=(sys.platform == 'win32')
             )
             
             # Get list of extracted frames
