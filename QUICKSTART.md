@@ -90,7 +90,7 @@ Wait for message: `WebODM is ready at http://localhost:8000`
    - Click "Browse" for Video File
    - Select your `.MP4` file
    - SRT file should auto-detect
-   - Choose a Buffer Directory (default is fine)
+   - Choose a Buffer Directory (default is fine - the application will create it automatically if it doesn't exist)
 
 3. **Processing Tab:**
    - Set Frame Rate: `1.0` fps (recommended)
@@ -139,6 +139,33 @@ Wait for message: `WebODM is ready at http://localhost:8000`
   - **Potree** (web viewer)
 
 ## Common Issues
+
+### "El sistema no puede encontrar el archivo especificado" (Windows Error)
+
+This error occurs when FFmpeg is not properly installed or not in the system PATH.
+
+**Solution:**
+```cmd
+# 1. Verify FFmpeg is installed
+ffmpeg -version
+ffprobe -version
+
+# 2. If not installed, download and install FFmpeg
+# Download from: https://www.gyan.dev/ffmpeg/builds/
+# Choose: ffmpeg-release-essentials.zip
+
+# 3. Extract to C:\ffmpeg
+
+# 4. Add to PATH (run as Administrator)
+setx PATH "%PATH%;C:\ffmpeg\bin" /M
+
+# 5. Restart your computer or at least close and reopen the application
+
+# 6. Verify installation
+ffmpeg -version
+```
+
+The application will now check for FFmpeg on startup and show a clear error message if it's not found.
 
 ### "FFmpeg not found"
 ```cmd
