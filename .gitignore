@@ -50,3 +50,9 @@ credentials.json
 
 # Build artifacts
 *.spec
+
+# Bundled dependencies (downloaded during build)
+bundled_deps/
+exiftool/
+dependencies/
+

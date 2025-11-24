@@ -17,6 +17,8 @@ from telemetry_sync import TelemetrySynchronizer
 from exif_injector import ExifInjector
 from webodm_client import WebODMClient
 from webodm_manager import WebODMManager
+from dependency_manager import DependencyManager, show_dependency_setup_wizard
+from config import DOCKER_DESKTOP_URL
 
 
 class PhotogrammetryApp:
@@ -44,7 +46,18 @@ class PhotogrammetryApp:
         # Initialize WebODM manager
         self.webodm_manager = WebODMManager()
         
+        # Initialize dependency manager
+        self.dependency_manager = DependencyManager()
+        
         self._setup_ui()
+        
+        # Check dependencies after UI is setup
+        self.root.after(500, self._check_initial_dependencies)
+    
+    @staticmethod
+    def _get_docker_install_message():
+        """Get Docker installation message with download URL"""
+        return f"Please install Docker Desktop from: {DOCKER_DESKTOP_URL}"
         
     def _setup_ui(self):
         """Setup the user interface"""
@@ -273,15 +286,49 @@ class PhotogrammetryApp:
         if dirname:
             self.output_path.set(dirname)
     
+    def _check_initial_dependencies(self):
+        """Check dependencies on startup"""
+        status = self.dependency_manager.check_all_dependencies()
+        
+        missing = []
+        if not status['ffmpeg']['installed'] and not status['ffmpeg']['bundled']:
+            missing.append('FFmpeg')
+        if not status['exiftool']['installed'] and not status['exiftool']['bundled']:
+            missing.append('ExifTool')
+        
+        if missing:
+            # Show setup wizard
+            self.log("⚠ Missing dependencies detected")
+            show_dependency_setup_wizard(self.root)
+            # Recheck after setup
+            status = self.dependency_manager.check_all_dependencies()
+        
+        # Log dependency status
+        if status['ffmpeg']['installed']:
+            self.log("✓ FFmpeg is ready")
+        if status['exiftool']['installed']:
+            self.log("✓ ExifTool is ready")
+        
+        # Check Docker for WebODM
+        if not status['docker']['installed']:
+            self.log("⚠ Docker not installed - 3D reconstruction features disabled")
+            self.log(f"  {self._get_docker_install_message()}")
+    
     def _check_webodm_status(self):
         """Check and display WebODM status"""
         status = self.webodm_manager.get_status()
         
         status_msg = []
         if not status['docker_installed']:
-            status_msg.append("❌ Docker not installed")
+            status_msg.append("❌ Docker is not installed.")
+            status_msg.append(f"   {self._get_docker_install_message()}")
+            # Disable WebODM controls
+            self.start_webodm_btn.config(state='disabled')
+            self.stop_webodm_btn.config(state='disabled')
         elif not status['docker_running']:
-            status_msg.append("❌ Docker not running")
+            status_msg.append("❌ Docker is not running. Please start Docker Desktop.")
+            self.start_webodm_btn.config(state='disabled')
+            self.stop_webodm_btn.config(state='disabled')
         else:
             status_msg.append("✓ Docker running")
         
@@ -292,12 +339,14 @@ class PhotogrammetryApp:
         
         if status['webodm_running']:
             status_msg.append(f"✓ WebODM running at {status['host']}")
-            self.start_webodm_btn.config(state='disabled')
-            self.stop_webodm_btn.config(state='normal')
+            if status['docker_installed'] and status['docker_running']:
+                self.start_webodm_btn.config(state='disabled')
+                self.stop_webodm_btn.config(state='normal')
         else:
             status_msg.append("○ WebODM not running")
-            self.start_webodm_btn.config(state='normal')
-            self.stop_webodm_btn.config(state='disabled')
+            if status['docker_installed'] and status['docker_running']:
+                self.start_webodm_btn.config(state='normal')
+                self.stop_webodm_btn.config(state='disabled')
         
         self.webodm_status_label.config(text="\n".join(status_msg))
         # Only log to console if explicitly called (not on startup)
@@ -308,6 +357,23 @@ class PhotogrammetryApp:
     
     def _start_webodm_service(self):
         """Start WebODM service in background thread"""
+        # Check Docker first
+        if not self.webodm_manager.check_docker_installed():
+            messagebox.showerror(
+                "Docker Not Installed",
+                f"Docker is not installed.\n\n{self._get_docker_install_message()}\n\n" +
+                "After installation, restart this application."
+            )
+            return
+        
+        if not self.webodm_manager.check_docker_running():
+            messagebox.showerror(
+                "Docker Not Running",
+                "Docker is installed but not running.\n\n" +
+                "Please start Docker Desktop and try again."
+            )
+            return
+        
         def start_task():
             self.log("Starting WebODM... This may take several minutes on first run.")
             self.webodm_status_label.config(text="⏳ Starting WebODM...")
