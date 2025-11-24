@@ -36,7 +36,6 @@ jobs:
     name: Build Windows Executable
     needs: test
     runs-on: windows-latest
-    if: github.event_name == 'push'
     permissions:
       contents: write  # Needed for creating releases
     
@@ -85,6 +84,7 @@ jobs:
     
     - name: Build executable
       run: |
+        # Build main application
         pyinstaller --name="DJI_3D_Mapper" `
           --windowed `
           --onefile `
@@ -95,13 +95,22 @@ jobs:
           --hidden-import=tkinter `
           --hidden-import=requests `
           main_app.py
+        
+        # Build dependency installer
+        pyinstaller --name="Install_Dependencies" `
+          --console `
+          --onefile `
+          --icon=NONE `
+          install_dependencies.py
       shell: pwsh
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: DJI_3D_Mapper
-        path: dist/DJI_3D_Mapper.exe
+        path: |
+          dist/DJI_3D_Mapper.exe
+          dist/Install_Dependencies.exe
         retention-days: 7
     
     - name: Get version
@@ -128,18 +137,27 @@ jobs:
           - Geotag images with GPS and camera orientation
           - Create 3D maps using WebODM
           
+          ## Installation
+          1. Download both `DJI_3D_Mapper.exe` and `Install_Dependencies.exe`
+          2. Run `Install_Dependencies.exe` to automatically install FFmpeg and ExifTool
+          3. Run `DJI_3D_Mapper.exe` to start the application
+          
           ## Requirements
           - Windows 10 or later
-          - FFmpeg installed and in PATH
-          - WebODM instance (local or remote)
+          - FFmpeg (can be installed via Install_Dependencies.exe)
+          - ExifTool (can be installed via Install_Dependencies.exe)
+          - WebODM instance (local Docker required, or remote instance)
           
           ## Usage
-          1. Download and run DJI_3D_Mapper.exe
-          2. Select your DJI video and SRT files
-          3. Configure processing options
-          4. Connect to WebODM
-          5. Generate 3D map
-        files: dist/DJI_3D_Mapper.exe
+          1. Run Install_Dependencies.exe (first time only)
+          2. Launch DJI_3D_Mapper.exe
+          3. Select your DJI video and SRT files
+          4. Configure processing options
+          5. Connect to WebODM
+          6. Generate 3D map
+        files: |
+          dist/DJI_3D_Mapper.exe
+          dist/Install_Dependencies.exe
         draft: false
         prerelease: false
       env:

@@ -48,10 +48,7 @@ class WebODMManager:
                 timeout=5,
                 shell=False
             )
-            if result.returncode == 0:
-                print(f"✓ Docker found: {result.stdout.strip()}")
-                return True
-            return False
+            return result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError):
             return False
     
