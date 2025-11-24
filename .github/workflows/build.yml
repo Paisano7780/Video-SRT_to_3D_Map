@@ -54,7 +54,8 @@ jobs:
     - name: Install ExifTool
       run: |
         # Define constants
-        $MIN_FILE_SIZE = 1 * 1024 * 1024  # 1MB minimum expected file size
+        # 1MB minimum - ExifTool ZIP is typically 7MB+, so 1MB threshold catches HTML error pages
+        $MIN_FILE_SIZE = 1 * 1024 * 1024  # 1MB = 1,048,576 bytes
         $EXIFTOOL_URL = "https://exiftool.org/exiftool-12.76_64.zip"
         $MAX_RETRY_COUNT = 3
         $RETRY_INTERVAL_SEC = 5
@@ -105,7 +106,7 @@ jobs:
           # Fallback: Try with curl as alternative
           # -L: follow redirects, -f: fail on HTTP errors, -S: show errors even when silent
           # --retry: number of retries, --retry-delay: delay between retries
-          curl.exe -L -f -S --retry $MAX_RETRY_COUNT --retry-delay $RETRY_INTERVAL_SEC -o exiftool.zip $EXIFTOOL_URL
+          curl.exe -L -f -S --retry "$MAX_RETRY_COUNT" --retry-delay "$RETRY_INTERVAL_SEC" -o "exiftool.zip" "$EXIFTOOL_URL"
           if ($LASTEXITCODE -eq 0) {
             try {
               Test-DownloadedFile
