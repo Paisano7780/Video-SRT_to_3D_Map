@@ -30,26 +30,40 @@ A comprehensive Windows application for processing DJI Mini 3 drone videos and c
 - Windows 10 or later
 - 8GB RAM minimum (16GB recommended)
 - 20GB free disk space for processing
+- Internet connection for first-run dependency downloads (if needed)
 
 ### Software Dependencies
+
+#### Bundled with Application
 - **FFmpeg**: Required for video frame extraction
-  - Download from: https://ffmpeg.org/download.html
-  - Add to system PATH
-- **Docker**: Required for embedded WebODM
+  - Automatically bundled with the executable
+  - Downloaded on first run if not bundled
+- **ExifTool**: Required for geotagging images
+  - Automatically bundled with the executable
+  - Downloaded on first run if not bundled
+
+#### Required for 3D Reconstruction
+- **Docker Desktop**: Required for WebODM 3D map creation
   - Download from: https://www.docker.com/products/docker-desktop
-  - Docker Desktop must be running for 3D map creation
-- **ExifTool**: Bundled with the application
+  - Docker Desktop must be installed and running to use 3D reconstruction features
+  - The application will guide you to install Docker if not present
+
+#### Embedded Components
 - **WebODM**: Embedded in the application
   - Included as a submodule from https://github.com/OpenDroneMap/WebODM
   - Automatically managed by the application
+  - Requires Docker to run
 
 ## Installation
 
-### Option 1: Download Pre-built Executable
+### Option 1: Download Pre-built Executable (Recommended)
 1. Go to [Releases](https://github.com/Paisano7780/Video-SRT_to_3D_Map/releases)
 2. Download the latest `DJI_3D_Mapper.exe`
-3. Install FFmpeg and add to PATH
-4. Run the application
+3. Run the application
+4. On first run, the application will:
+   - Check for required dependencies (FFmpeg, ExifTool)
+   - Automatically download and install any missing dependencies
+   - Guide you to install Docker Desktop if you want 3D reconstruction features
 
 ### Option 2: Run from Source
 ```bash
@@ -63,15 +77,14 @@ git submodule update --init --recursive
 # Install Python dependencies
 pip install -r requirements.txt
 
-# Install FFmpeg (add to PATH)
-# Download from https://ffmpeg.org/
-
-# Install Docker Desktop
+# (Optional) Install Docker Desktop for 3D reconstruction
 # Download from https://www.docker.com/products/docker-desktop
 
 # Run application
 python main_app.py
 ```
+
+The application will automatically check and install FFmpeg and ExifTool on first run if not already installed.
 
 ## Usage Guide
 
@@ -159,32 +172,53 @@ The application parses DJI SRT format with regex patterns:
 
 ## Troubleshooting
 
+### Dependencies Not Installed
+
+The application now automatically handles dependency installation. If you encounter issues:
+
+1. **FFmpeg or ExifTool Missing**
+   - The application will detect missing dependencies on startup
+   - It will prompt you to download and install them automatically
+   - If automatic installation fails:
+     - FFmpeg: Download from https://www.gyan.dev/ffmpeg/builds/
+     - ExifTool: Download from https://exiftool.org/
+     - Extract and add to your system PATH
+
+2. **Docker Not Installed (for 3D reconstruction)**
+   - Download Docker Desktop: https://www.docker.com/products/docker-desktop
+   - Install and start Docker Desktop
+   - Restart the application
+   - The 3D reconstruction features will become available
+
 ### "El sistema no puede encontrar el archivo especificado" (Windows)
-This error occurs when FFmpeg is not properly installed or accessible in the system PATH.
+This error occurs when FFmpeg is not accessible.
 
 **Solution:**
-1. Download FFmpeg from https://www.gyan.dev/ffmpeg/builds/ (choose `ffmpeg-release-essentials.zip`)
-2. Extract to `C:\ffmpeg`
-3. Add `C:\ffmpeg\bin` to system PATH:
-   - Right-click "This PC" → Properties → Advanced System Settings
-   - Click "Environment Variables"
-   - Under "System variables", select "Path" and click "Edit"
-   - Click "New" and add `C:\ffmpeg\bin`
-   - Click "OK" on all dialogs
-4. Restart your computer or at least restart the application
-5. Verify with: `ffmpeg -version` in Command Prompt
+- The application now bundles FFmpeg and should handle this automatically
+- If the error persists, restart the application to trigger dependency check
+- As a last resort, manually install FFmpeg and add to PATH
 
-The application now checks for FFmpeg on startup and provides a helpful error message if not found.
+### "Docker is not installed" Error in WebODM Tab
 
-### "FFmpeg not found"
-- Install FFmpeg from https://ffmpeg.org/
-- Add FFmpeg bin directory to system PATH
-- Restart the application
+**Solution:**
+1. Install Docker Desktop from https://www.docker.com/products/docker-desktop
+2. Start Docker Desktop
+3. Wait for Docker to fully start (check system tray icon)
+4. Click "Check Status" in the WebODM tab
+5. The error message will be replaced with Docker status
 
-### "ExifTool not found"
-- Download from https://exiftool.org/
-- Place `exiftool.exe` in the application directory
-- Or install and add to system PATH
+### Automatic Download Fails
+
+If automatic dependency download fails:
+
+**Firewall/Antivirus Issues:**
+- Temporarily disable firewall/antivirus
+- Run the application as Administrator
+- Or manually download and install dependencies
+
+**No Internet Connection:**
+- Ensure you have an active internet connection
+- The application requires internet only for first-run dependency downloads
 
 ### "Docker not found" or "Docker not running"
 - Install Docker Desktop from https://www.docker.com/products/docker-desktop
