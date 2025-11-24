@@ -73,7 +73,11 @@ def build_executable():
     if not exiftool_path:
         print("⚠ Warning: ExifTool not available. Build will continue but may not work.")
     
-    # Build PyInstaller command
+    # Build main application
+    print("\n" + "=" * 60)
+    print("Building main application...")
+    print("=" * 60)
+    
     cmd = [
         "pyinstaller",
         "--name=DJI_3D_Mapper",
@@ -105,26 +109,53 @@ def build_executable():
     # Main script
     cmd.append("main_app.py")
     
-    print(f"⏳ Running PyInstaller...")
+    print(f"⏳ Running PyInstaller for main app...")
     print(f"Command: {' '.join(cmd)}")
     
     try:
-        result = subprocess.run(cmd, check=True)
+        subprocess.run(cmd, check=True)
+        print("✓ Main application built successfully!")
+    except subprocess.CalledProcessError as e:
+        print(f"✗ Build failed: {e}")
+        return False
+    
+    # Build dependency installer
+    print("\n" + "=" * 60)
+    print("Building dependency installer...")
+    print("=" * 60)
+    
+    installer_cmd = [
+        "pyinstaller",
+        "--name=Install_Dependencies",
+        "--onefile",
+        "--console",
+        "--clean",
+        "--noconfirm",
+        "install_dependencies.py"
+    ]
+    
+    print(f"⏳ Running PyInstaller for installer...")
+    
+    try:
+        subprocess.run(installer_cmd, check=True)
+        print("✓ Dependency installer built successfully!")
         
         print("=" * 60)
         print("✓ Build completed successfully!")
         print("=" * 60)
-        print(f"Executable location: dist/DJI_3D_Mapper.exe")
+        print(f"Main application: dist/DJI_3D_Mapper.exe")
+        print(f"Dependency installer: dist/Install_Dependencies.exe")
         print()
         print("Next steps:")
-        print("1. Test the executable")
-        print("2. Ensure FFmpeg is installed and in PATH")
+        print("1. Run Install_Dependencies.exe to install FFmpeg and ExifTool")
+        print("2. Test the DJI_3D_Mapper.exe application")
         print("3. Ensure WebODM is running (for 3D reconstruction)")
         
         return True
         
     except subprocess.CalledProcessError as e:
-        print(f"✗ Build failed: {e}")
+        print(f"✗ Installer build failed: {e}")
+        print("Main application is still available in dist/")
         return False
 
 
