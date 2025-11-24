@@ -6,9 +6,6 @@ on:
   pull_request:
     branches: [ main ]
 
-env:
-  EXIFTOOL_VERSION: "12.70"
-
 jobs:
   test:
     name: Run Tests
@@ -56,9 +53,14 @@ jobs:
     
     - name: Install ExifTool
       run: |
-        Invoke-WebRequest -Uri "https://exiftool.org/exiftool-${{ env.EXIFTOOL_VERSION }}.zip" -OutFile "exiftool.zip"
-        Expand-Archive -Path "exiftool.zip" -DestinationPath "exiftool"
-        Rename-Item -Path "exiftool\exiftool(-k).exe" -NewName "exiftool.exe"
+        # Download latest ExifTool Windows executable
+        Invoke-WebRequest -Uri "https://exiftool.org/exiftool-12.76_64.zip" -OutFile "exiftool.zip"
+        Expand-Archive -Path "exiftool.zip" -DestinationPath "exiftool_temp"
+        # Move the executable and rename
+        New-Item -ItemType Directory -Force -Path "exiftool"
+        Move-Item -Path "exiftool_temp\exiftool(-k).exe" -Destination "exiftool\exiftool.exe" -Force
+        Remove-Item -Path "exiftool_temp" -Recurse -Force
+        Remove-Item -Path "exiftool.zip" -Force
     
     - name: Build executable
       run: |

@@ -16,7 +16,7 @@ import urllib.request
 import zipfile
 
 # ExifTool version to download
-EXIFTOOL_VERSION = "12.70"
+EXIFTOOL_VERSION = "12.76_64"
 
 
 def download_exiftool():
