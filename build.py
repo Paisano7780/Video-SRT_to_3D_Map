@@ -165,8 +165,9 @@ def build_executable():
     else:
         print("  ⚠ FFmpeg not bundled - will be downloaded on first run")
     
-    # Add the new dependency_manager module
+    # Add the new modules
     cmd.append("--add-data=dependency_manager.py;.")
+    cmd.append("--add-data=cesium_viewer.py;.")
     
     # Hidden imports
     hidden_imports = [
@@ -178,6 +179,10 @@ def build_executable():
         "threading",
         "re",
         "subprocess",
+        "http.server",
+        "socketserver",
+        "webbrowser",
+        "atexit",
     ]
     
     for module in hidden_imports:
