@@ -10,6 +10,7 @@ import urllib.request
 import zipfile
 import shutil
 import tempfile
+import webbrowser
 from pathlib import Path
 from typing import Tuple, Optional
 import tkinter as tk
@@ -97,6 +98,105 @@ class DependencyManager:
             return result.returncode == 0
         except (FileNotFoundError, subprocess.TimeoutExpired):
             return False
+    
+    def prompt_docker_installation(self, parent_window=None) -> bool:
+        """
+        Prompt user to install Docker Desktop and guide them through the process
+        
+        Args:
+            parent_window: Optional parent window for dialogs
+            
+        Returns:
+            True if user confirms they installed Docker, False otherwise
+        """
+        from config import DOCKER_DESKTOP_URL
+        
+        message = (
+            "Docker Desktop is required for 3D reconstruction features.\n\n"
+            "Docker Desktop is not currently installed on your system.\n\n"
+            "Would you like to:\n"
+            "1. Open the Docker Desktop download page now?\n"
+            "2. Install Docker Desktop\n"
+            "3. Restart this application after installation\n\n"
+            "Note: Docker Desktop installation requires administrator privileges "
+            "and a system restart may be required."
+        )
+        
+        response = messagebox.askyesno(
+            "Docker Desktop Required",
+            message,
+            icon='warning'
+        )
+        
+        if response:
+            # Open Docker Desktop download page
+            try:
+                webbrowser.open(DOCKER_DESKTOP_URL)
+                
+                # Show installation instructions
+                instructions = (
+                    "Docker Desktop download page has been opened in your browser.\n\n"
+                    "Installation Steps:\n"
+                    "1. Download Docker Desktop for Windows\n"
+                    "2. Run the installer (requires administrator privileges)\n"
+                    "3. Follow the installation wizard\n"
+                    "4. Restart your computer if prompted\n"
+                    "5. Start Docker Desktop from the Start Menu\n"
+                    "6. Wait for Docker to fully start (green icon in system tray)\n"
+                    "7. Restart this application\n\n"
+                    "Click OK when you have completed the installation."
+                )
+                
+                messagebox.showinfo("Docker Desktop Installation", instructions)
+                
+                # Ask if user has completed installation
+                completed = messagebox.askyesno(
+                    "Installation Completed?",
+                    "Have you completed the Docker Desktop installation and started Docker?\n\n"
+                    "Click 'Yes' to verify Docker installation.\n"
+                    "Click 'No' to continue without Docker (3D features will be disabled)."
+                )
+                
+                return completed
+                
+            except Exception as e:
+                messagebox.showerror(
+                    "Error",
+                    f"Failed to open Docker download page: {e}\n\n"
+                    f"Please manually visit: {DOCKER_DESKTOP_URL}"
+                )
+                return False
+        
+        return False
+    
+    def verify_docker_installation(self, parent_window=None) -> Tuple[bool, str]:
+        """
+        Verify Docker installation after user claims to have installed it
+        
+        Args:
+            parent_window: Optional parent window for dialogs
+            
+        Returns:
+            Tuple of (success, message)
+        """
+        if not self.check_docker_installed():
+            return False, (
+                "Docker Desktop is still not detected.\n\n"
+                "Please ensure:\n"
+                "1. Docker Desktop is fully installed\n"
+                "2. You have restarted your computer (if required)\n"
+                "3. Docker Desktop is running\n\n"
+                "You may need to restart this application after installation."
+            )
+        
+        if not self.check_docker_running():
+            return False, (
+                "Docker is installed but not running.\n\n"
+                "Please start Docker Desktop from the Start Menu and wait for it to fully start.\n"
+                "Look for the Docker icon in the system tray - it should show 'Docker Desktop is running'."
+            )
+        
+        return True, "Docker Desktop is installed and running successfully!"
     
     def get_bundled_ffmpeg_path(self) -> Optional[str]:
         """Get path to bundled FFmpeg if it exists"""

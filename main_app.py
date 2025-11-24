@@ -10,6 +10,7 @@ import sys
 import threading
 from typing import Optional
 import shutil
+import atexit
 
 from srt_parser import SRTParser
 from frame_extractor import FrameExtractor
@@ -18,6 +19,7 @@ from exif_injector import ExifInjector
 from webodm_client import WebODMClient
 from webodm_manager import WebODMManager
 from dependency_manager import DependencyManager, show_dependency_setup_wizard
+from cesium_viewer import CesiumViewer
 from config import DOCKER_DESKTOP_URL
 
 
@@ -48,6 +50,12 @@ class PhotogrammetryApp:
         
         # Initialize dependency manager
         self.dependency_manager = DependencyManager()
+        
+        # Initialize CesiumJS viewer
+        self.cesium_viewer = CesiumViewer()
+        
+        # Register cleanup on exit
+        atexit.register(self._cleanup)
         
         self._setup_ui()
         
@@ -309,10 +317,31 @@ class PhotogrammetryApp:
         if status['exiftool']['installed']:
             self.log("✓ ExifTool is ready")
         
-        # Check Docker for WebODM
+        # Check Docker for WebODM - offer installation if missing
         if not status['docker']['installed']:
             self.log("⚠ Docker not installed - 3D reconstruction features disabled")
             self.log(f"  {self._get_docker_install_message()}")
+            
+            # Offer to guide user through Docker installation
+            response = messagebox.askyesno(
+                "Docker Not Found",
+                "Docker Desktop is not installed.\n\n"
+                "Docker is required for 3D map reconstruction features.\n\n"
+                "Would you like guidance on installing Docker Desktop now?",
+                icon='info'
+            )
+            
+            if response:
+                # Use the new prompt_docker_installation method
+                if self.dependency_manager.prompt_docker_installation(self.root):
+                    # User claims to have installed Docker, verify
+                    success, message = self.dependency_manager.verify_docker_installation(self.root)
+                    if success:
+                        self.log("✓ Docker Desktop verified and running!")
+                        messagebox.showinfo("Success", message)
+                    else:
+                        self.log("✗ Docker verification failed")
+                        messagebox.showwarning("Docker Verification", message)
     
     def _check_webodm_status(self):
         """Check and display WebODM status"""
@@ -622,10 +651,15 @@ class PhotogrammetryApp:
                 self.current_project_id = project_id
                 self.current_task_uuid = task_uuid
                 
+                # Download and launch CesiumJS viewer
+                self.log("Preparing 3D viewer...")
+                self._launch_cesium_viewer(client, project_id, task_uuid)
+                
                 messagebox.showinfo(
                     "Success",
                     "3D map created successfully!\n\n"
-                    "Go to Output tab to export results."
+                    "The 3D viewer has been opened in your browser.\n"
+                    "You can also export results from the Output tab."
                 )
             else:
                 raise Exception("WebODM processing failed or timed out")
@@ -634,6 +668,67 @@ class PhotogrammetryApp:
             self.log(f"✗ WebODM Error: {str(e)}")
             self.webodm_progress_label.config(text="✗ Processing failed")
             messagebox.showerror("Error", f"WebODM processing failed:\n{str(e)}")
+    
+    def _launch_cesium_viewer(self, client: WebODMClient, project_id: int, task_uuid: str):
+        """
+        Launch CesiumJS viewer with the 3D model
+        
+        Args:
+            client: WebODM client instance
+            project_id: WebODM project ID
+            task_uuid: WebODM task UUID
+        """
+        try:
+            # Create temporary directory for viewer assets
+            viewer_assets_dir = os.path.join(
+                os.path.expanduser("~"), 
+                "DJI_3D_Viewer",
+                f"project_{project_id}_task_{task_uuid}"
+            )
+            os.makedirs(viewer_assets_dir, exist_ok=True)
+            
+            # Download textured model
+            self.log("Downloading 3D model for viewer...")
+            model_path = client.download_results(
+                project_id,
+                task_uuid,
+                viewer_assets_dir,
+                asset_type="odm_texturing/odm_textured_model_geo.obj"
+            )
+            
+            # Try to download orthophoto as well
+            orthophoto_path = None
+            try:
+                self.log("Downloading orthophoto...")
+                orthophoto_path = client.download_results(
+                    project_id,
+                    task_uuid,
+                    viewer_assets_dir,
+                    asset_type="odm_orthophoto/odm_orthophoto.tif"
+                )
+            except:
+                self.log("Orthophoto not available")
+            
+            if model_path and os.path.exists(model_path):
+                # Launch CesiumJS viewer
+                self.log("Launching 3D viewer...")
+                success, message = self.cesium_viewer.launch_viewer(
+                    model_path,
+                    orthophoto_path,
+                    viewer_assets_dir
+                )
+                
+                if success:
+                    self.log(f"✓ {message}")
+                    self.log("Note: The viewer will remain open until you close this application")
+                else:
+                    self.log(f"⚠ Viewer launch failed: {message}")
+            else:
+                self.log("⚠ 3D model not available for viewing")
+                
+        except Exception as e:
+            self.log(f"⚠ Failed to launch viewer: {str(e)}")
+            # Don't raise exception - viewer is optional
     
     def _export_results(self):
         """Export WebODM results"""
@@ -687,6 +782,16 @@ class PhotogrammetryApp:
         if message:
             self.progress_label.config(text=message)
         self.root.update_idletasks()
+    
+    def _cleanup(self):
+        """Cleanup resources on application exit"""
+        try:
+            # Stop CesiumJS viewer server
+            if hasattr(self, 'cesium_viewer') and self.cesium_viewer:
+                self.cesium_viewer.stop_server()
+                self.log("✓ Viewer server stopped")
+        except Exception as e:
+            print(f"Cleanup error: {e}")
 
 
 def main():
