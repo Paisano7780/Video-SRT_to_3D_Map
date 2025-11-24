@@ -341,8 +341,8 @@ class TestDockerWaitTimeout:
     
     @patch('webodm_manager.WebODMManager.wait_for_docker_ready')
     @patch('webodm_manager.WebODMManager.check_docker_installed')
-    def test_start_webodm_uses_wait_for_docker_ready(self, mock_installed, mock_wait):
-        """Test that start_webodm uses wait_for_docker_ready instead of check_docker_running"""
+    def test_start_webodm_calls_wait_for_docker_ready(self, mock_installed, mock_wait):
+        """Test that start_webodm calls wait_for_docker_ready during the startup process"""
         mock_installed.return_value = True
         mock_wait.return_value = False  # Docker not ready
         
@@ -354,12 +354,12 @@ class TestDockerWaitTimeout:
         # Verify wait_for_docker_ready was called
         mock_wait.assert_called_once()
     
+    @patch('webodm_manager.WebODMManager.is_webodm_running')
     @patch('webodm_manager.WebODMManager.check_webodm_exists')
     @patch('webodm_manager.WebODMManager.wait_for_docker_ready')
     @patch('webodm_manager.WebODMManager.check_docker_installed')
-    @patch('webodm_manager.WebODMManager.is_webodm_running')
-    def test_start_webodm_waits_patiently_for_docker(self, mock_running, mock_installed, 
-                                                      mock_wait, mock_exists):
+    def test_start_webodm_waits_patiently_for_docker(self, mock_installed, mock_wait, 
+                                                      mock_exists, mock_running):
         """Test that start_webodm waits patiently for Docker before proceeding"""
         mock_installed.return_value = True
         mock_wait.return_value = True  # Docker becomes ready
