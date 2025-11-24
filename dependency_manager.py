@@ -31,6 +31,9 @@ class DependencyManager:
     # FFmpeg essentials build
     FFMPEG_URL = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
     
+    # Docker Desktop installation parameters with WSL 2 backend
+    DOCKER_INSTALL_PARAMS = "install --quiet --accept-license --backend=wsl-2"
+    
     def __init__(self, app_dir: Optional[str] = None):
         """
         Initialize dependency manager
@@ -177,7 +180,7 @@ class DependencyManager:
                 None,
                 "runas",  # Trigger UAC elevation
                 installer_path,
-                "install --quiet --accept-license --backend=wsl-2",  # Installation parameters with WSL 2 backend
+                self.DOCKER_INSTALL_PARAMS,  # Installation parameters with WSL 2 backend
                 None,
                 1  # SW_SHOWNORMAL
             )
@@ -243,9 +246,10 @@ class DependencyManager:
             # Execute silent installation with WSL 2 backend and license acceptance
             # Run the installation command using subprocess.run
             # We use a list to avoid shell injection
+            # Split the parameters from the constant
+            install_params = self.DOCKER_INSTALL_PARAMS.split()
             result = subprocess.run(
-                ['cmd', '/c', 'start', '/wait', '', installer_path, 
-                 'install', '--quiet', '--accept-license', '--backend=wsl-2'],
+                ['cmd', '/c', 'start', '/wait', '', installer_path] + install_params,
                 capture_output=True,
                 timeout=600,  # 10 minutes timeout
                 creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0

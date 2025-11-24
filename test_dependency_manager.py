@@ -231,7 +231,7 @@ def test_install_docker_desktop(mock_is_admin, mock_exists, mock_run):
     success, message = dm.install_docker_desktop('/tmp/DockerDesktopInstaller.exe')
     
     assert success
-    assert "successfully" in message.lower() or "wsl" in message.lower()
+    assert "successfully" in message.lower() and "wsl" in message.lower()
     mock_run.assert_called_once()
     
     # Verify WSL 2 backend flags are included
