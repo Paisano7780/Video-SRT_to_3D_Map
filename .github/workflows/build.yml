@@ -54,8 +54,10 @@ jobs:
     - name: Install ExifTool
       run: |
         # Define constants
-        $MIN_FILE_SIZE = 1000000  # 1MB minimum expected file size
+        $MIN_FILE_SIZE = 1 * 1024 * 1024  # 1MB minimum expected file size
         $EXIFTOOL_URL = "https://exiftool.org/exiftool-12.76_64.zip"
+        $MAX_RETRY_COUNT = 3
+        $RETRY_INTERVAL_SEC = 5
         
         # Function to extract and install ExifTool
         function Install-ExifTool {
@@ -70,6 +72,10 @@ jobs:
         
         # Function to validate downloaded file
         function Test-DownloadedFile {
+          if (-not (Test-Path "exiftool.zip")) {
+            throw "Downloaded file does not exist"
+          }
+          
           $fileSize = (Get-Item "exiftool.zip").Length
           Write-Host "Downloaded file size: $fileSize bytes"
           
@@ -85,8 +91,8 @@ jobs:
           Invoke-WebRequest -Uri $EXIFTOOL_URL `
             -OutFile "exiftool.zip" `
             -ErrorAction Stop `
-            -MaximumRetryCount 3 `
-            -RetryIntervalSec 5
+            -MaximumRetryCount $MAX_RETRY_COUNT `
+            -RetryIntervalSec $RETRY_INTERVAL_SEC
           
           Test-DownloadedFile
           Install-ExifTool
