@@ -45,7 +45,8 @@ class WebODMManager:
                 ["docker", "--version"],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
+                shell=False
             )
             if result.returncode == 0:
                 print(f"✓ Docker found: {result.stdout.strip()}")
@@ -66,7 +67,8 @@ class WebODMManager:
                 ["docker", "ps"],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
+                shell=False
             )
             return result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError):
@@ -161,7 +163,7 @@ class WebODMManager:
         except Exception as e:
             try:
                 os.chdir(original_dir)
-            except:
+            except OSError:
                 pass
             return False, f"Failed to start WebODM: {str(e)}"
     
@@ -204,7 +206,7 @@ class WebODMManager:
         except Exception as e:
             try:
                 os.chdir(original_dir)
-            except:
+            except OSError:
                 pass
             return False, f"Failed to stop WebODM: {str(e)}"
     

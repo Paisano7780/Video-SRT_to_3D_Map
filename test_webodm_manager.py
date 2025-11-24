@@ -42,7 +42,7 @@ class TestWebODMManager:
         result = manager.check_webodm_exists()
         assert isinstance(result, bool)
         # In this repository, webodm should exist
-        assert result == True
+        assert result is True
     
     def test_is_webodm_running(self):
         """Test WebODM running status check"""
