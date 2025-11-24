@@ -1,0 +1,62 @@
+Actúa como un Ingeniero Senior en Python especializado en Sistemas de Información Geográfica (GIS) y Visión por Computadora.
+
+Necesito que escribas una app para Windows 10 que incluya un script en Python completo para un pipeline de fotogrametría y el software open source WebODM..
+El objetivo es procesar videos de drones (DJI Mini 3) y crear mapas 3d georeferenciados 
+
+**Entradas (Inputs):**
+1. Archivos de video `.MP4` (DJI Mini 3).
+2. Archivos de subtítulos `.SRT` asociados que contienen la telemetría (GPS, Altitud, Gimbal, ISO, Shutter, etc.).
+3. Estos inputs deben poder importarse desde una carpeta de google drive o con un drag and drop here o seleccion de carpeta de la PC.
+
+**Requisitos del Script:**
+
+1.  **Extracción de Frames:**
+    - Usar `ffmpeg` (vía `subprocess` o librería) para extraer imágenes del video a una tasa definida (ej. 1 frame por segundo).
+    - Guardar las imágenes en una carpeta temporal.
+
+2.  **Parsing del SRT (Ingeniería Inversa):**
+    - Leer el archivo `.SRT`.
+    - Usar Regex para extraer: Timestamp, Latitud, Longitud, Altitud Barométrica/Relativa, Gimbal Pitch y Drone Yaw.
+    - *Nota:* El formato DJI suele ser: `[latitude: -34.xyz] [longitude: -58.xyz] ...`
+
+3.  **Sincronización e Interpolación (CRÍTICO):**
+    - El video tiene 30fps, el SRT tiene datos a 1Hz (1 por segundo).
+    - Debes sincronizar el tiempo de cada frame extraído con el SRT.
+    - Realizar una **interpolación lineal** para Latitud, Longitud y Altitud para hallar la posición exacta en el momento del frame.
+    - Realizar una **interpolación circular** para el Yaw (para evitar errores cuando pasa de 359° a 0°).
+
+4.  **Clasificación del Vuelo (Lógica Inteligente):**
+    - Analizar los vectores de movimiento.
+    - Si el `Gimbal Pitch` es cercano a -90° y el cambio de Yaw es bajo -> Etiquetar en consola como "Vuelo de Mapeo (Nadir)".
+    - Si el `Gimbal Pitch` es oblicuo (ej. -45°) y el Yaw cambia constantemente -> Etiquetar como "Vuelo de Órbita (Estructura)".
+
+5.  **Inyección de Metadatos (Geotagging):**
+    - Usar la librería `pyexiftool` (wrapper de Phil Harvey's ExifTool).
+    - Escribir en cada imagen JPG extraída los tags EXIF/XMP necesarios para que **WebODM** funcione:
+      - `GPSLatitude`, `GPSLatitudeRef`
+      - `GPSLongitude`, `GPSLongitudeRef`
+      - `AbsoluteAltitude` (o RelativeAltitude si no hay absoluta)
+      - `XMP:GimbalPitchDegree`
+      - `XMP:GimbalYawDegree`
+
+6.  **Almacenamiento Intermedio (Buffer):**
+    - Esos archivos de fotos georeferenciados debera guardarlos en un buffer, que puede ser una carpeta de google drive a la que solicite acceso o una carpeta en la PC.
+   
+
+**Procesamiento (Creation):**
+
+1.  **Import a Modulo WebODM**
+    - Tomar las fotos georefenciadas del buffer del punto anterior.
+
+2. ** Creacion de Mapa 3d Georeferenciado (3D Map Creation)
+Disparar modo de creación de mapa 3D.
+Revisar tiempo de espera acorde al volumen de fotos.
+
+**Salida (Output):**
+- Exportar el mapa 3D creado y solicitar si se guardara en una carpeta de google drive o en una de la PC
+
+**Librerías sugeridas:** `pandas` (para interpolación), `re`, `subprocess`, `pyexiftool`, `numpy`.
+
+Por favor, genera el código Python estructurado, manejando errores si el SRT no coincide con la duración del video, implementar el WebODM y la exportacion todo en una misma App.
+
+Generar Workflow parar ambiente de pruebas unitarias y compilacion. Cuando la compilacion sea exitosa, subir el archivo .exe como un nuevo release con control de version.
