@@ -53,14 +53,30 @@ jobs:
     
     - name: Install ExifTool
       run: |
-        # Download ExifTool using curl to bypass firewall issues
-        curl.exe -L https://exiftool.org/exiftool-12.76_64.zip -o exiftool.zip
-        Expand-Archive -Path "exiftool.zip" -DestinationPath "exiftool_temp"
-        # Move the executable and rename
+        # Install ExifTool using Chocolatey (pre-installed on GitHub-hosted Windows runners)
+        # This avoids firewall issues with direct downloads from exiftool.org
+        Write-Host "Installing ExifTool via Chocolatey..."
+        choco install exiftool -y --no-progress
+        
+        if ($LASTEXITCODE -ne 0) {
+          Write-Error "Chocolatey installation of ExifTool failed with exit code: $LASTEXITCODE"
+          exit 1
+        }
+        
+        # Verify installation
+        $exiftoolPath = (Get-Command exiftool -ErrorAction SilentlyContinue).Source
+        if (-not $exiftoolPath) {
+          Write-Error "ExifTool was not found in PATH after installation. Chocolatey install may have failed silently."
+          exit 1
+        }
+        
+        Write-Host "ExifTool installed successfully at: $exiftoolPath"
+        exiftool -ver
+        
+        # Create exiftool directory and copy the executable for pyinstaller
         New-Item -ItemType Directory -Force -Path "exiftool"
-        Move-Item -Path "exiftool_temp\exiftool(-k).exe" -Destination "exiftool\exiftool.exe" -Force
-        Remove-Item -Path "exiftool_temp" -Recurse -Force
-        Remove-Item -Path "exiftool.zip" -Force
+        Copy-Item -Path $exiftoolPath -Destination "exiftool\exiftool.exe" -Force
+        Write-Host "ExifTool copied to exiftool\exiftool.exe for bundling"
       shell: pwsh
     
     - name: Build executable
