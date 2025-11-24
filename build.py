@@ -15,6 +15,9 @@ import subprocess
 import urllib.request
 import zipfile
 
+# ExifTool version to download
+EXIFTOOL_VERSION = "12.70"
+
 
 def download_exiftool():
     """Download ExifTool if not present"""
@@ -28,7 +31,7 @@ def download_exiftool():
     print("⏳ Downloading ExifTool...")
     os.makedirs(exiftool_dir, exist_ok=True)
     
-    url = "https://exiftool.org/exiftool-12.70.zip"
+    url = f"https://exiftool.org/exiftool-{EXIFTOOL_VERSION}.zip"
     zip_path = "exiftool.zip"
     
     try:

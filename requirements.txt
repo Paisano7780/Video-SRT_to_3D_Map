@@ -4,9 +4,6 @@ numpy>=1.24.0
 pyexiftool>=0.5.5
 requests>=2.31.0
 
-# GUI
-tkinterdnd2>=0.3.0
-
 # Google Drive integration
 google-api-python-client>=2.0.0
 google-auth-httplib2>=0.1.0

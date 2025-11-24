@@ -101,13 +101,15 @@ class WebODMClient:
             
             # Prepare files for upload
             files = []
-            for img_path in image_paths:
-                if os.path.exists(img_path):
-                    files.append(
-                        ('images', (os.path.basename(img_path), 
-                                   open(img_path, 'rb'), 
-                                   'image/jpeg'))
-                    )
+            file_handles = []
+            try:
+                for img_path in image_paths:
+                    if os.path.exists(img_path):
+                        fh = open(img_path, 'rb')
+                        file_handles.append(fh)
+                        files.append(
+                            ('images', (os.path.basename(img_path), fh, 'image/jpeg'))
+                        )
             
             # Default processing options
             default_options = {
@@ -132,14 +134,13 @@ class WebODMClient:
                 ])
             }
             
-            print(f"⏳ Uploading {len(files)} images...")
-            response = self.session.post(url, files=files, data=data)
-            
-            # Close file handles
-            for _, (_, file_obj, _) in files:
-                file_obj.close()
-            
-            response.raise_for_status()
+                print(f"⏳ Uploading {len(files)} images...")
+                response = self.session.post(url, files=files, data=data)
+                response.raise_for_status()
+            finally:
+                # Close file handles
+                for fh in file_handles:
+                    fh.close()
             
             task_uuid = response.json()['id']
             print(f"✓ Task created (UUID: {task_uuid})")

@@ -129,7 +129,9 @@ class TelemetrySynchronizer:
             circular_variance = 1 - R
             
             # Convert to degrees for interpretation
-            yaw_variation = np.rad2deg(np.sqrt(-2 * np.log(R))) if R > 0 else 180
+            # Maximum circular variance is 180 degrees (complete dispersion)
+            MAX_CIRCULAR_VARIANCE_DEG = 180
+            yaw_variation = np.rad2deg(np.sqrt(-2 * np.log(R))) if R > 0 else MAX_CIRCULAR_VARIANCE_DEG
         else:
             yaw_variation = 0
         

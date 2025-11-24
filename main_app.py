@@ -418,12 +418,15 @@ class PhotogrammetryApp:
             # Wait for processing
             self.webodm_progress_label.config(text="Processing (this may take a while)...")
             
+            def update_webodm_progress(status, progress):
+                """Update WebODM processing progress"""
+                self.webodm_progress_label.config(text=f"Processing: {status} ({progress}%)")
+            
             success = client.wait_for_completion(
                 project_id,
                 task_uuid,
                 timeout=7200,  # 2 hours
-                progress_callback=lambda status, progress: 
-                    self.webodm_progress_label.config(text=f"Processing: {status} ({progress}%)")
+                progress_callback=update_webodm_progress
             )
             
             if success:
