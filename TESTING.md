@@ -104,13 +104,12 @@ The tests specifically verify handling of the following error conditions shown i
 
 ### ❌ Docker is not installed
 ```
-Docker is not installed.
-Please install Docker Desktop from: https://www.docker.com/products/docker-desktop
+Docker is not installed. Please install Docker Desktop first.
 ```
 
 ### ❌ WebODM not found in ./webodm
 ```
-WebODM not found in ./webodm
+WebODM not found at {path}. Please ensure the repository is cloned correctly.
 ```
 
 ### ❌ WebODM not running
