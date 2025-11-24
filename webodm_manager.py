@@ -99,7 +99,15 @@ class WebODMManager:
                 )
                 
                 # Check if Docker is ready: return code is 0 and no connection errors
-                if result.returncode == 0 and "Cannot connect to the Docker daemon" not in result.stderr:
+                # Check for common Docker daemon connection errors across different versions/platforms
+                daemon_error_patterns = [
+                    "Cannot connect to the Docker daemon",
+                    "Is the docker daemon running",
+                    "error during connect"
+                ]
+                has_daemon_error = any(pattern in result.stderr for pattern in daemon_error_patterns)
+                
+                if result.returncode == 0 and not has_daemon_error:
                     print("✅ Docker está listo y operativo.")
                     return True
                     
