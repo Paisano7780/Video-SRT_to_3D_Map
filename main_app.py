@@ -53,6 +53,11 @@ class PhotogrammetryApp:
         
         # Check dependencies after UI is setup
         self.root.after(500, self._check_initial_dependencies)
+    
+    @staticmethod
+    def _get_docker_install_message():
+        """Get Docker installation message with download URL"""
+        return f"Please install Docker Desktop from: {DOCKER_DESKTOP_URL}"
         
     def _setup_ui(self):
         """Setup the user interface"""
@@ -307,7 +312,7 @@ class PhotogrammetryApp:
         # Check Docker for WebODM
         if not status['docker']['installed']:
             self.log("⚠ Docker not installed - 3D reconstruction features disabled")
-            self.log(f"  Download Docker Desktop: {DOCKER_DESKTOP_URL}")
+            self.log(f"  {self._get_docker_install_message()}")
     
     def _check_webodm_status(self):
         """Check and display WebODM status"""
@@ -315,8 +320,8 @@ class PhotogrammetryApp:
         
         status_msg = []
         if not status['docker_installed']:
-            status_msg.append("❌ Docker is not installed. Please install Docker Desktop first.")
-            status_msg.append(f"   Download: {DOCKER_DESKTOP_URL}")
+            status_msg.append("❌ Docker is not installed.")
+            status_msg.append(f"   {self._get_docker_install_message()}")
             # Disable WebODM controls
             self.start_webodm_btn.config(state='disabled')
             self.stop_webodm_btn.config(state='disabled')
@@ -356,8 +361,7 @@ class PhotogrammetryApp:
         if not self.webodm_manager.check_docker_installed():
             messagebox.showerror(
                 "Docker Not Installed",
-                "Docker is not installed. Please install Docker Desktop first.\n\n" +
-                f"Download from: {DOCKER_DESKTOP_URL}\n\n" +
+                f"Docker is not installed.\n\n{self._get_docker_install_message()}\n\n" +
                 "After installation, restart this application."
             )
             return

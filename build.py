@@ -77,9 +77,10 @@ def download_ffmpeg():
         print(f"  URL: {FFMPEG_URL}")
         
         def reporthook(count, block_size, total_size):
-            percent = int(count * block_size * 100 / total_size)
-            sys.stdout.write(f'\r  Progress: {percent}% ')
-            sys.stdout.flush()
+            if total_size > 0:
+                percent = int(count * block_size * 100 / total_size)
+                sys.stdout.write(f'\r  Progress: {percent}% ')
+                sys.stdout.flush()
         
         urllib.request.urlretrieve(FFMPEG_URL, zip_path, reporthook)
         print()  # New line after progress

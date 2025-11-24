@@ -151,21 +151,23 @@ class DependencyManager:
             
             # Add directory if not already in PATH
             if directory not in current_path:
+                # Clean up current path (remove trailing semicolon if present)
+                current_path = current_path.rstrip(';')
                 new_path = f"{current_path};{directory}" if current_path else directory
                 winreg.SetValueEx(key, 'PATH', 0, winreg.REG_EXPAND_SZ, new_path)
                 
                 # Also set for current process
                 os.environ['PATH'] = new_path
                 
-                # Broadcast environment change
+                # Broadcast environment change (best effort)
                 try:
                     subprocess.run(
                         ['setx', 'PATH', new_path],
                         capture_output=True,
                         timeout=10
                     )
-                except Exception:
-                    pass  # setx is optional
+                except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+                    pass  # setx is optional, don't fail if it doesn't work
             
             winreg.CloseKey(key)
             return True
