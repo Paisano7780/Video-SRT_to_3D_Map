@@ -155,9 +155,45 @@ class DependencyManager:
             # Return None on error - caller will handle the failure
             return None
     
+    def elevate_and_run_installer(self, installer_path: str) -> Tuple[bool, str]:
+        """
+        Run Docker installer with UAC elevation if needed
+        
+        Args:
+            installer_path: Path to Docker Desktop installer
+            
+        Returns:
+            Tuple of (success, message)
+        """
+        if sys.platform != 'win32':
+            return False, "UAC elevation is only supported on Windows"
+        
+        try:
+            import ctypes
+            
+            # ShellExecute with 'runas' verb to trigger UAC elevation
+            # Parameters: hwnd, operation, file, parameters, directory, show_cmd
+            ret = ctypes.windll.shell32.ShellExecuteW(
+                None,
+                "runas",  # Trigger UAC elevation
+                installer_path,
+                "install --quiet --accept-license --backend=wsl-2",  # Installation parameters with WSL 2 backend
+                None,
+                1  # SW_SHOWNORMAL
+            )
+            
+            # ShellExecute returns > 32 on success
+            if ret > 32:
+                return True, "Installation started with elevated privileges"
+            else:
+                return False, f"Failed to elevate installer (error code: {ret})"
+                
+        except Exception as e:
+            return False, f"UAC elevation failed: {str(e)}"
+    
     def install_docker_desktop(self, installer_path: str, parent_window=None) -> Tuple[bool, str]:
         """
-        Install Docker Desktop using silent installation
+        Install Docker Desktop using silent installation with WSL 2 backend
         
         Args:
             installer_path: Path to Docker Desktop installer
@@ -174,41 +210,68 @@ class DependencyManager:
         
         # Check for admin privileges
         if not self.is_admin():
-            message = (
-                "Administrator privileges are required to install Docker Desktop.\n\n"
-                "Please:\n"
-                "1. Close this application\n"
-                "2. Right-click the application icon\n"
-                "3. Select 'Run as administrator'\n"
-                "4. Try the installation again"
+            # Try to elevate privileges using UAC
+            messagebox.showinfo(
+                "Administrator Privileges Required",
+                "Docker Desktop installation requires administrator privileges.\n\n"
+                "A User Account Control (UAC) prompt will appear.\n"
+                "Please click 'Yes' to allow the installation to proceed.",
+                icon='info'
             )
-            return False, message
+            
+            success, message = self.elevate_and_run_installer(installer_path)
+            
+            if not success:
+                return False, (
+                    "Failed to run installer with administrator privileges.\n\n"
+                    "Please try:\n"
+                    "1. Close this application\n"
+                    "2. Right-click the application icon\n"
+                    "3. Select 'Run as administrator'\n"
+                    "4. Try the installation again\n\n"
+                    f"Error: {message}"
+                )
+            
+            # Installation started with elevation, inform user to wait
+            return True, (
+                "Docker Desktop installation has been started with administrator privileges.\n\n"
+                "Please wait for the installation to complete.\n"
+                "This may take 5-10 minutes."
+            )
         
         try:
-            # Execute silent installation
-            # Note: On Windows, we need to use shell=True for the 'start' command
-            # to work properly, but we validate the installer_path exists first
-            # The installer_path comes from tempfile.gettempdir() which is safe
-            
+            # Execute silent installation with WSL 2 backend and license acceptance
             # Run the installation command using subprocess.run
-            # We use a list to avoid shell injection, but 'start' requires shell on Windows
+            # We use a list to avoid shell injection
             result = subprocess.run(
-                ['cmd', '/c', 'start', '/wait', '', installer_path, 'install', '--quiet'],
+                ['cmd', '/c', 'start', '/wait', '', installer_path, 
+                 'install', '--quiet', '--accept-license', '--backend=wsl-2'],
                 capture_output=True,
                 timeout=600,  # 10 minutes timeout
                 creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
             )
             
             if result.returncode == 0:
-                return True, "Docker Desktop installation completed successfully"
+                return True, "Docker Desktop installation completed successfully with WSL 2 backend"
             else:
                 error_msg = result.stderr.decode('utf-8', errors='ignore') if result.stderr else "Unknown error"
-                return False, f"Installation failed with code {result.returncode}: {error_msg}"
+                return False, (
+                    f"Installation failed with code {result.returncode}: {error_msg}\n\n"
+                    "Please ensure:\n"
+                    "• You are running as Administrator\n"
+                    "• WSL 2 is installed on your system\n"
+                    "• Your Windows version supports WSL 2 (Windows 10 version 1903 or higher)"
+                )
                 
         except subprocess.TimeoutExpired:
             return False, "Installation timed out after 10 minutes"
         except Exception as e:
-            return False, f"Installation failed: {str(e)}"
+            return False, (
+                f"Installation failed: {str(e)}\n\n"
+                "Please ensure:\n"
+                "• You are running as Administrator\n"
+                "• WSL 2 is installed on your system"
+            )
     
     def prompt_restart_for_docker(self, parent_window=None) -> bool:
         """

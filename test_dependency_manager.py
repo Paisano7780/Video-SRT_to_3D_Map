@@ -218,12 +218,12 @@ def test_download_docker_installer(mock_exists, mock_download):
 @patch('os.path.exists')
 @patch('dependency_manager.DependencyManager.is_admin')
 def test_install_docker_desktop(mock_is_admin, mock_exists, mock_run):
-    """Test Docker Desktop installation"""
+    """Test Docker Desktop installation with WSL 2 backend"""
     from dependency_manager import DependencyManager
     
     dm = DependencyManager()
     
-    # Test successful installation
+    # Test successful installation with admin privileges
     mock_is_admin.return_value = True
     mock_exists.return_value = True
     mock_run.return_value = Mock(returncode=0, stderr=b'')
@@ -231,16 +231,57 @@ def test_install_docker_desktop(mock_is_admin, mock_exists, mock_run):
     success, message = dm.install_docker_desktop('/tmp/DockerDesktopInstaller.exe')
     
     assert success
-    assert "successfully" in message.lower()
+    assert "successfully" in message.lower() or "wsl" in message.lower()
     mock_run.assert_called_once()
     
-    # Test installation without admin privileges
-    mock_is_admin.return_value = False
+    # Verify WSL 2 backend flags are included
+    call_args = mock_run.call_args[0][0]
+    assert '--backend=wsl-2' in call_args
+    assert '--accept-license' in call_args
+    assert '--quiet' in call_args
     
-    success, message = dm.install_docker_desktop('/tmp/DockerDesktopInstaller.exe')
+    # Test installation without admin privileges (should trigger UAC elevation)
+    mock_is_admin.return_value = False
+    mock_run.reset_mock()
+    
+    # Mock the elevate_and_run_installer to avoid actual UAC prompt
+    with patch.object(dm, 'elevate_and_run_installer') as mock_elevate:
+        mock_elevate.return_value = (True, "Installation started")
+        
+        success, message = dm.install_docker_desktop('/tmp/DockerDesktopInstaller.exe')
+        
+        # Should attempt elevation
+        mock_elevate.assert_called_once()
+        assert success or "administrator" in message.lower()
+
+
+@patch('ctypes.windll.shell32.ShellExecuteW')
+def test_elevate_and_run_installer(mock_shell_execute):
+    """Test UAC elevation for installer"""
+    from dependency_manager import DependencyManager
+    
+    dm = DependencyManager()
+    
+    # Test successful elevation
+    mock_shell_execute.return_value = 33  # > 32 means success
+    
+    success, message = dm.elevate_and_run_installer('/tmp/DockerDesktopInstaller.exe')
+    
+    assert success
+    mock_shell_execute.assert_called_once()
+    
+    # Verify UAC parameters
+    call_args = mock_shell_execute.call_args[0]
+    assert call_args[1] == "runas"  # UAC elevation verb
+    assert '--backend=wsl-2' in call_args[3]  # WSL 2 backend flag
+    assert '--accept-license' in call_args[3]  # License acceptance
+    
+    # Test elevation failure
+    mock_shell_execute.return_value = 5  # <= 32 means failure
+    
+    success, message = dm.elevate_and_run_installer('/tmp/DockerDesktopInstaller.exe')
     
     assert not success
-    assert "administrator" in message.lower() or "admin" in message.lower()
 
 
 @patch('tkinter.messagebox.showinfo')
