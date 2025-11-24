@@ -55,16 +55,17 @@ jobs:
     
     - name: Build executable
       run: |
-        pyinstaller --name="DJI_3D_Mapper" ^
-          --windowed ^
-          --onefile ^
-          --add-binary="exiftool/exiftool.exe;." ^
-          --icon=NONE ^
-          --hidden-import=pandas ^
-          --hidden-import=numpy ^
-          --hidden-import=tkinter ^
-          --hidden-import=requests ^
+        pyinstaller --name="DJI_3D_Mapper" `
+          --windowed `
+          --onefile `
+          --add-binary="exiftool/exiftool.exe;." `
+          --icon=NONE `
+          --hidden-import=pandas `
+          --hidden-import=numpy `
+          --hidden-import=tkinter `
+          --hidden-import=requests `
           main_app.py
+      shell: pwsh
     
     - name: Upload artifact
       uses: actions/upload-artifact@v3
