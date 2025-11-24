@@ -96,6 +96,7 @@ jobs:
           Write-Host "Attempting alternative download method with curl..."
           
           # Fallback: Try with curl as alternative
+          # -L: follow redirects, -f: fail on HTTP errors, -S: show errors even when silent
           curl.exe -L -f -S -o exiftool.zip $EXIFTOOL_URL
           if ($LASTEXITCODE -eq 0) {
             try {
