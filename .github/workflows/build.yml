@@ -58,20 +58,25 @@ jobs:
         Write-Host "Installing ExifTool via Chocolatey..."
         choco install exiftool -y --no-progress
         
-        # Verify installation
-        $exiftoolPath = (Get-Command exiftool -ErrorAction SilentlyContinue).Source
-        if ($exiftoolPath) {
-          Write-Host "ExifTool installed successfully at: $exiftoolPath"
-          exiftool -ver
-          
-          # Create exiftool directory and copy the executable for pyinstaller
-          New-Item -ItemType Directory -Force -Path "exiftool"
-          Copy-Item -Path $exiftoolPath -Destination "exiftool\exiftool.exe" -Force
-          Write-Host "ExifTool copied to exiftool\exiftool.exe for bundling"
-        } else {
-          Write-Error "ExifTool installation failed"
+        if ($LASTEXITCODE -ne 0) {
+          Write-Error "Chocolatey installation of ExifTool failed with exit code: $LASTEXITCODE"
           exit 1
         }
+        
+        # Verify installation
+        $exiftoolPath = (Get-Command exiftool -ErrorAction SilentlyContinue).Source
+        if (-not $exiftoolPath) {
+          Write-Error "ExifTool was not found in PATH after installation. Chocolatey install may have failed silently."
+          exit 1
+        }
+        
+        Write-Host "ExifTool installed successfully at: $exiftoolPath"
+        exiftool -ver
+        
+        # Create exiftool directory and copy the executable for pyinstaller
+        New-Item -ItemType Directory -Force -Path "exiftool"
+        Copy-Item -Path $exiftoolPath -Destination "exiftool\exiftool.exe" -Force
+        Write-Host "ExifTool copied to exiftool\exiftool.exe for bundling"
       shell: pwsh
     
     - name: Build executable
