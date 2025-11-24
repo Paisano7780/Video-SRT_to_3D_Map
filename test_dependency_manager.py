@@ -146,12 +146,12 @@ def test_url_constants():
     """Test that URL constants are defined correctly"""
     from dependency_manager import DependencyManager
     
-    assert DependencyManager.EXIFTOOL_VERSION == "12.76"
-    assert "exiftool-12.76.zip" in DependencyManager.EXIFTOOL_URL
+    # ExifTool now uses LATEST_64 URL
+    assert "exiftool-LATEST_64.zip" in DependencyManager.EXIFTOOL_URL
     assert "ffmpeg" in DependencyManager.FFMPEG_URL.lower()
     
-    # Verify URLs don't contain incorrect version format
-    assert "12.76_64" not in DependencyManager.EXIFTOOL_URL
+    # Verify URLs are using the correct format
+    assert DependencyManager.EXIFTOOL_URL == "https://exiftool.org/exiftool-LATEST_64.zip"
 
 
 if __name__ == '__main__':

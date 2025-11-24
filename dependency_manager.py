@@ -10,6 +10,7 @@ import urllib.request
 import zipfile
 import shutil
 import tempfile
+import webbrowser
 from pathlib import Path
 from typing import Tuple, Optional
 import tkinter as tk
@@ -23,10 +24,9 @@ if sys.platform == 'win32':
 class DependencyManager:
     """Manages application dependencies"""
     
-    # ExifTool version - using Windows standalone executable
-    EXIFTOOL_VERSION = "12.76"
-    # Note: ExifTool Windows version uses format exiftool-VERSION.zip (not VERSION_64)
-    EXIFTOOL_URL = f"https://exiftool.org/exiftool-{EXIFTOOL_VERSION}.zip"
+    # ExifTool - using LATEST_64 for Windows 64-bit standalone executable
+    # This URL always points to the latest 64-bit version
+    EXIFTOOL_URL = "https://exiftool.org/exiftool-LATEST_64.zip"
     
     # FFmpeg essentials build
     FFMPEG_URL = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
@@ -97,6 +97,105 @@ class DependencyManager:
             return result.returncode == 0
         except (FileNotFoundError, subprocess.TimeoutExpired):
             return False
+    
+    def prompt_docker_installation(self, parent_window=None) -> bool:
+        """
+        Prompt user to install Docker Desktop and guide them through the process
+        
+        Args:
+            parent_window: Optional parent window for dialogs
+            
+        Returns:
+            True if user confirms they installed Docker, False otherwise
+        """
+        from config import DOCKER_DESKTOP_URL
+        
+        message = (
+            "Docker Desktop is required for 3D reconstruction features.\n\n"
+            "Docker Desktop is not currently installed on your system.\n\n"
+            "Would you like to:\n"
+            "1. Open the Docker Desktop download page now?\n"
+            "2. Install Docker Desktop\n"
+            "3. Restart this application after installation\n\n"
+            "Note: Docker Desktop installation requires administrator privileges "
+            "and a system restart may be required."
+        )
+        
+        response = messagebox.askyesno(
+            "Docker Desktop Required",
+            message,
+            icon='warning'
+        )
+        
+        if response:
+            # Open Docker Desktop download page
+            try:
+                webbrowser.open(DOCKER_DESKTOP_URL)
+                
+                # Show installation instructions
+                instructions = (
+                    "Docker Desktop download page has been opened in your browser.\n\n"
+                    "Installation Steps:\n"
+                    "1. Download Docker Desktop for Windows\n"
+                    "2. Run the installer (requires administrator privileges)\n"
+                    "3. Follow the installation wizard\n"
+                    "4. Restart your computer if prompted\n"
+                    "5. Start Docker Desktop from the Start Menu\n"
+                    "6. Wait for Docker to fully start (green icon in system tray)\n"
+                    "7. Restart this application\n\n"
+                    "Click OK when you have completed the installation."
+                )
+                
+                messagebox.showinfo("Docker Desktop Installation", instructions)
+                
+                # Ask if user has completed installation
+                completed = messagebox.askyesno(
+                    "Installation Completed?",
+                    "Have you completed the Docker Desktop installation and started Docker?\n\n"
+                    "Click 'Yes' to verify Docker installation.\n"
+                    "Click 'No' to continue without Docker (3D features will be disabled)."
+                )
+                
+                return completed
+                
+            except Exception as e:
+                messagebox.showerror(
+                    "Error",
+                    f"Failed to open Docker download page: {e}\n\n"
+                    f"Please manually visit: {DOCKER_DESKTOP_URL}"
+                )
+                return False
+        
+        return False
+    
+    def verify_docker_installation(self, parent_window=None) -> Tuple[bool, str]:
+        """
+        Verify Docker installation after user claims to have installed it
+        
+        Args:
+            parent_window: Optional parent window for dialogs
+            
+        Returns:
+            Tuple of (success, message)
+        """
+        if not self.check_docker_installed():
+            return False, (
+                "Docker Desktop is still not detected.\n\n"
+                "Please ensure:\n"
+                "1. Docker Desktop is fully installed\n"
+                "2. You have restarted your computer (if required)\n"
+                "3. Docker Desktop is running\n\n"
+                "You may need to restart this application after installation."
+            )
+        
+        if not self.check_docker_running():
+            return False, (
+                "Docker is installed but not running.\n\n"
+                "Please start Docker Desktop from the Start Menu and wait for it to fully start.\n"
+                "Look for the Docker icon in the system tray - it should show 'Docker Desktop is running'."
+            )
+        
+        return True, "Docker Desktop is installed and running successfully!"
     
     def get_bundled_ffmpeg_path(self) -> Optional[str]:
         """Get path to bundled FFmpeg if it exists"""
@@ -269,18 +368,26 @@ class DependencyManager:
             if not self.download_with_progress(self.EXIFTOOL_URL, zip_path, progress_callback):
                 return False, "Failed to download ExifTool"
             
-            # Extract
+            # Extract and rename exiftool(-k).exe to exiftool.exe
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                zip_ref.extractall(exiftool_dir)
-            
-            # Rename exiftool(-k).exe to exiftool.exe
-            for file in os.listdir(exiftool_dir):
-                if file == 'exiftool(-k).exe':
-                    os.rename(
-                        os.path.join(exiftool_dir, file),
-                        os.path.join(exiftool_dir, 'exiftool.exe')
-                    )
-                    break
+                # Search for the exiftool(-k).exe file in the ZIP
+                exiftool_found = False
+                for member in zip_ref.namelist():
+                    if 'exiftool(-k).exe' in member:
+                        # Extract the file
+                        zip_ref.extract(member, path=exiftool_dir)
+                        
+                        # Get paths
+                        original_path = os.path.join(exiftool_dir, member)
+                        final_path = os.path.join(exiftool_dir, 'exiftool.exe')
+                        
+                        # Rename to exiftool.exe
+                        os.rename(original_path, final_path)
+                        exiftool_found = True
+                        break
+                
+                if not exiftool_found:
+                    return False, "ExifTool executable not found in downloaded archive"
             
             # Clean up
             os.remove(zip_path)

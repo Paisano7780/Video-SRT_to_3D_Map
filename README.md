@@ -15,6 +15,11 @@ A comprehensive Windows application for processing DJI Mini 3 drone videos and c
   - **Orbit/Structure**: Oblique gimbal angle, high yaw variation
 - **EXIF Geotagging**: Inject GPS and camera metadata into images using ExifTool
 - **WebODM Integration**: Create 3D georeferenced models using open-source WebODM
+- **Interactive 3D Viewer**: Automatic CesiumJS-based 3D visualization in your browser
+  - View 3D models directly after processing
+  - Interactive controls for rotation, zoom, and pan
+  - Terrain integration
+  - Orthophoto overlay support
 - **Export Options**: Save results to local folders or Google Drive
 
 ### User Interface
@@ -23,6 +28,7 @@ A comprehensive Windows application for processing DJI Mini 3 drone videos and c
 - Real-time processing log
 - Progress indicators
 - Error handling and validation
+- Automatic dependency management with installation wizards
 
 ## Requirements
 
@@ -111,15 +117,22 @@ The pipeline will:
 - Classify flight type
 - Inject EXIF metadata into images
 
-### Step 4: WebODM Integration
+### Step 4: WebODM Integration & 3D Viewing
 1. Go to **"3. WebODM"** tab
 2. The embedded WebODM status will be displayed automatically
 3. If WebODM is not running, click **"Start WebODM"** (first start may take several minutes to download Docker images)
 4. Once WebODM is running, click **"Create 3D Map"**
 5. The application will automatically start WebODM if needed
 6. Wait for processing (can take 30 minutes to several hours depending on image count and quality settings)
+7. **NEW:** After processing completes, a CesiumJS 3D viewer will automatically open in your browser
+   - Interact with your 3D model in real-time
+   - Use mouse controls to rotate, pan, and zoom
+   - Toggle terrain and orthophoto layers
+   - The viewer runs on a local web server (http://localhost:8080)
 
 **Note:** WebODM runs in Docker containers managed by the application. Ensure Docker Desktop is running before using 3D map creation.
+
+**Docker Not Installed?** The application will guide you through the Docker Desktop installation process if it's not detected.
 
 ### Step 5: Export Results
 1. Go to **"4. Output"** tab
@@ -201,11 +214,22 @@ This error occurs when FFmpeg is not accessible.
 ### "Docker is not installed" Error in WebODM Tab
 
 **Solution:**
-1. Install Docker Desktop from https://www.docker.com/products/docker-desktop
-2. Start Docker Desktop
-3. Wait for Docker to fully start (check system tray icon)
-4. Click "Check Status" in the WebODM tab
-5. The error message will be replaced with Docker status
+The application now includes an **interactive Docker installation wizard**:
+
+1. When Docker is not detected, the application will automatically prompt you
+2. Click "Yes" to open the Docker Desktop download page in your browser
+3. Follow the installation instructions provided
+4. After installing Docker Desktop:
+   - Start Docker Desktop from the Start Menu
+   - Wait for Docker to fully start (green icon in system tray)
+   - The application will verify your installation
+5. If verification fails, click "Check Status" in the WebODM tab to retry
+
+**Manual Installation:**
+1. Visit https://www.docker.com/products/docker-desktop
+2. Download and install Docker Desktop
+3. Start Docker Desktop
+4. Restart the application
 
 ### Automatic Download Fails
 
@@ -273,8 +297,12 @@ Video-SRT_to_3D_Map/
 ├── telemetry_sync.py     # Synchronization and interpolation
 ├── exif_injector.py      # EXIF metadata injection
 ├── webodm_client.py      # WebODM API client
+├── webodm_manager.py     # WebODM lifecycle manager
+├── dependency_manager.py # Dependency installation manager
+├── cesium_viewer.py      # CesiumJS 3D viewer integration
 ├── test_*.py             # Unit tests
 ├── requirements.txt      # Python dependencies
+├── webodm/               # Embedded WebODM (submodule)
 └── .github/workflows/    # CI/CD workflows
 ```
 
@@ -285,12 +313,15 @@ Video-SRT_to_3D_Map/
 - **FFmpeg**: Video processing
 - **ExifTool**: Metadata manipulation
 - **WebODM**: 3D reconstruction
+- **CesiumJS**: Interactive 3D geospatial visualization
+- **Docker**: Container runtime for WebODM
 - **Tkinter**: GUI framework
 - **Pandas/NumPy**: Data processing
 
 ### External Resources
 - DJI telemetry format documentation
 - WebODM API: https://github.com/OpenDroneMap/WebODM
+- CesiumJS: https://cesium.com/platform/cesiumjs/
 - ExifTool: https://exiftool.org/
 
 ## License
