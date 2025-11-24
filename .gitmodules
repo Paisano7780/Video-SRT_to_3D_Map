@@ -1,0 +1,3 @@
+[submodule "webodm"]
+	path = webodm
+	url = https://github.com/OpenDroneMap/WebODM.git

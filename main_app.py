@@ -16,6 +16,7 @@ from frame_extractor import FrameExtractor
 from telemetry_sync import TelemetrySynchronizer
 from exif_injector import ExifInjector
 from webodm_client import WebODMClient
+from webodm_manager import WebODMManager
 
 
 class PhotogrammetryApp:
@@ -39,6 +40,9 @@ class PhotogrammetryApp:
         # State
         self.processing = False
         self.geotagged_images = []
+        
+        # Initialize WebODM manager
+        self.webodm_manager = WebODMManager()
         
         self._setup_ui()
         
@@ -77,6 +81,9 @@ class PhotogrammetryApp:
             state='disabled', bg='black', fg='lime'
         )
         self.log_text.pack(fill='both', expand=True, padx=10, pady=(0, 10))
+        
+        # Check WebODM status on startup (in background)
+        self.root.after(1000, self._check_webodm_status)
         
     def _setup_input_tab(self, parent):
         """Setup input file selection tab"""
@@ -144,26 +151,49 @@ class PhotogrammetryApp:
         
     def _setup_webodm_tab(self, parent):
         """Setup WebODM integration tab"""
-        # Connection settings
-        conn_frame = ttk.LabelFrame(parent, text="WebODM Connection", padding=10)
-        conn_frame.pack(fill='x', padx=10, pady=5)
+        # Status frame
+        status_frame = ttk.LabelFrame(parent, text="Embedded WebODM Status", padding=10)
+        status_frame.pack(fill='x', padx=10, pady=5)
         
-        ttk.Label(conn_frame, text="URL:").grid(row=0, column=0, sticky='w', padx=(0, 5))
-        ttk.Entry(conn_frame, textvariable=self.webodm_url, width=40).grid(row=0, column=1, sticky='ew')
+        self.webodm_status_label = ttk.Label(
+            status_frame, 
+            text="Checking WebODM status...",
+            font=('TkDefaultFont', 9)
+        )
+        self.webodm_status_label.pack(pady=5)
         
-        ttk.Label(conn_frame, text="Username:").grid(row=1, column=0, sticky='w', padx=(0, 5), pady=(5, 0))
-        ttk.Entry(conn_frame, textvariable=self.webodm_username, width=40).grid(row=1, column=1, sticky='ew', pady=(5, 0))
+        # Control buttons frame
+        control_frame = ttk.Frame(status_frame)
+        control_frame.pack(pady=5)
         
-        ttk.Label(conn_frame, text="Password:").grid(row=2, column=0, sticky='w', padx=(0, 5), pady=(5, 0))
-        ttk.Entry(conn_frame, textvariable=self.webodm_password, width=40, show='*').grid(row=2, column=1, sticky='ew', pady=(5, 0))
+        self.start_webodm_btn = ttk.Button(
+            control_frame, text="Start WebODM",
+            command=self._start_webodm_service
+        )
+        self.start_webodm_btn.pack(side='left', padx=5)
         
-        conn_frame.columnconfigure(1, weight=1)
+        self.stop_webodm_btn = ttk.Button(
+            control_frame, text="Stop WebODM",
+            command=self._stop_webodm_service,
+            state='disabled'
+        )
+        self.stop_webodm_btn.pack(side='left', padx=5)
         
-        # Test connection button
         ttk.Button(
-            parent, text="Test Connection",
-            command=self._test_webodm_connection
-        ).pack(pady=10)
+            control_frame, text="Check Status",
+            command=self._check_webodm_status
+        ).pack(side='left', padx=5)
+        
+        # Info label
+        info_label = ttk.Label(
+            status_frame,
+            text="WebODM will be automatically started when needed.\n"
+                 "First startup may take several minutes to download Docker images.",
+            justify='center',
+            foreground='gray',
+            font=('TkDefaultFont', 8)
+        )
+        info_label.pack(pady=5)
         
         # Create 3D map button
         self.create_map_btn = ttk.Button(
@@ -232,26 +262,84 @@ class PhotogrammetryApp:
         if dirname:
             self.output_path.set(dirname)
     
-    def _test_webodm_connection(self):
-        """Test WebODM connection"""
-        self.log("Testing WebODM connection...")
+    def _check_webodm_status(self):
+        """Check and display WebODM status"""
+        status = self.webodm_manager.get_status()
         
-        try:
-            client = WebODMClient(
-                host=self.webodm_url.get(),
-                username=self.webodm_username.get(),
-                password=self.webodm_password.get()
-            )
+        status_msg = []
+        if not status['docker_installed']:
+            status_msg.append("❌ Docker not installed")
+        elif not status['docker_running']:
+            status_msg.append("❌ Docker not running")
+        else:
+            status_msg.append("✓ Docker running")
+        
+        if not status['webodm_exists']:
+            status_msg.append("❌ WebODM not found in ./webodm")
+        else:
+            status_msg.append("✓ WebODM directory exists")
+        
+        if status['webodm_running']:
+            status_msg.append(f"✓ WebODM running at {status['host']}")
+            self.start_webodm_btn.config(state='disabled')
+            self.stop_webodm_btn.config(state='normal')
+        else:
+            status_msg.append("○ WebODM not running")
+            self.start_webodm_btn.config(state='normal')
+            self.stop_webodm_btn.config(state='disabled')
+        
+        self.webodm_status_label.config(text="\n".join(status_msg))
+        self.log("\n".join(status_msg))
+    
+    def _start_webodm_service(self):
+        """Start WebODM service in background thread"""
+        def start_task():
+            self.log("Starting WebODM... This may take several minutes on first run.")
+            self.webodm_status_label.config(text="⏳ Starting WebODM...")
+            self.start_webodm_btn.config(state='disabled')
             
-            if client.authenticate():
-                self.log("✓ WebODM connection successful!")
-                messagebox.showinfo("Success", "Connected to WebODM successfully!")
+            success, message = self.webodm_manager.start_webodm(timeout=300)
+            
+            if success:
+                self.log(message)
+                self.webodm_status_label.config(text=f"✓ WebODM running at {self.webodm_manager.host}")
+                self.stop_webodm_btn.config(state='normal')
+                messagebox.showinfo("Success", message)
             else:
-                self.log("✗ WebODM connection failed")
-                messagebox.showerror("Error", "Failed to connect to WebODM")
-        except Exception as e:
-            self.log(f"✗ Error: {e}")
-            messagebox.showerror("Error", f"Connection error: {e}")
+                self.log(f"Failed to start WebODM: {message}")
+                self.webodm_status_label.config(text=f"❌ {message}")
+                self.start_webodm_btn.config(state='normal')
+                messagebox.showerror("Error", message)
+        
+        thread = threading.Thread(target=start_task, daemon=True)
+        thread.start()
+    
+    def _stop_webodm_service(self):
+        """Stop WebODM service"""
+        def stop_task():
+            self.log("Stopping WebODM...")
+            self.webodm_status_label.config(text="⏳ Stopping WebODM...")
+            self.stop_webodm_btn.config(state='disabled')
+            
+            success, message = self.webodm_manager.stop_webodm()
+            
+            if success:
+                self.log(message)
+                self.webodm_status_label.config(text="○ WebODM stopped")
+                self.start_webodm_btn.config(state='normal')
+                messagebox.showinfo("Success", message)
+            else:
+                self.log(f"Failed to stop WebODM: {message}")
+                self.webodm_status_label.config(text=f"❌ {message}")
+                self.stop_webodm_btn.config(state='normal')
+                messagebox.showerror("Error", message)
+        
+        thread = threading.Thread(target=stop_task, daemon=True)
+        thread.start()
+    
+    def _test_webodm_connection(self):
+        """Test WebODM connection - kept for compatibility"""
+        self._check_webodm_status()
     
     def _start_processing(self):
         """Start the processing pipeline"""
@@ -385,12 +473,21 @@ class PhotogrammetryApp:
             self.log("Starting WebODM 3D Reconstruction")
             self.log("=" * 60)
             
+            # Ensure WebODM is running
+            self.webodm_progress_label.config(text="Ensuring WebODM is running...")
+            if not self.webodm_manager.is_webodm_running():
+                self.log("WebODM not running. Starting WebODM...")
+                success, message = self.webodm_manager.ensure_running(timeout=300)
+                if not success:
+                    raise Exception(f"Failed to start WebODM: {message}")
+                self.log(message)
+            
             # Connect to WebODM
             self.webodm_progress_label.config(text="Connecting to WebODM...")
             client = WebODMClient(
-                host=self.webodm_url.get(),
-                username=self.webodm_username.get(),
-                password=self.webodm_password.get()
+                host=self.webodm_manager.host,
+                username=self.webodm_manager.username,
+                password=self.webodm_manager.password
             )
             
             if not client.authenticate():
@@ -461,9 +558,9 @@ class PhotogrammetryApp:
             self.export_status.config(text="Exporting...")
             
             client = WebODMClient(
-                host=self.webodm_url.get(),
-                username=self.webodm_username.get(),
-                password=self.webodm_password.get()
+                host=self.webodm_manager.host,
+                username=self.webodm_manager.username,
+                password=self.webodm_manager.password
             )
             
             client.authenticate()
