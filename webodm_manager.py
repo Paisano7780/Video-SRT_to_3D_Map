@@ -7,6 +7,7 @@ import os
 import sys
 import subprocess
 import time
+import shutil
 import requests
 from typing import Optional, Tuple
 import platform
@@ -17,6 +18,12 @@ class WebODMManager:
     
     # Maximum time to wait for Docker to start (60 seconds)
     DOCKER_TIMEOUT = 60
+    
+    # Critical error message for Docker service timeout (Spanish per issue requirements)
+    DOCKER_TIMEOUT_ERROR = (
+        "❌ Error Crítico de Servicio: Docker no respondió después de 60 segundos. "
+        "Por favor, reinicie su PC y verifique la configuración de Integración WSL en Docker Desktop."
+    )
     
     def __init__(self, webodm_path: Optional[str] = None):
         """
@@ -65,7 +72,6 @@ class WebODMManager:
         Returns:
             True if docker executable exists in PATH
         """
-        import shutil
         docker_executable = "docker.exe" if platform.system() == "Windows" else "docker"
         return shutil.which(docker_executable) is not None
     
@@ -138,8 +144,7 @@ class WebODMManager:
             time.sleep(5)
         
         # Timeout expired - show critical error message per issue requirements
-        print(f"❌ Error Crítico de Servicio: Docker no respondió después de {self.DOCKER_TIMEOUT} segundos.")
-        print("Por favor, reinicie su PC y verifique la configuración de Integración WSL en Docker Desktop.")
+        print(self.DOCKER_TIMEOUT_ERROR)
         return False
     
     def check_webodm_exists(self) -> bool:
@@ -189,10 +194,7 @@ class WebODMManager:
         # Wait for Docker to be ready (with timeout and retry logic)
         # This is the robust, patient waiting mechanism that handles Docker startup delays
         if not self.wait_for_docker_ready():
-            return False, (
-                "❌ Error Crítico de Servicio: Docker no respondió después de 60 segundos. "
-                "Por favor, reinicie su PC y verifique la configuración de Integración WSL en Docker Desktop."
-            )
+            return False, self.DOCKER_TIMEOUT_ERROR
         
         if not self.check_webodm_exists():
             return False, f"WebODM not found at {self.webodm_path}. Please ensure the repository is cloned correctly."
