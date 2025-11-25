@@ -8,6 +8,7 @@ import subprocess
 from typing import Optional
 import tempfile
 import sys
+import math
 
 
 class ExifInjector:
@@ -58,6 +59,25 @@ class ExifInjector:
                 "Download and place exiftool.exe in the application directory or system PATH."
             )
     
+    @staticmethod
+    def _is_valid_number(value) -> bool:
+        """
+        Check if a value is a valid number (not None and not NaN)
+        
+        Args:
+            value: Value to check
+            
+        Returns:
+            True if value is a valid number
+        """
+        if value is None:
+            return False
+        try:
+            # Check for NaN (works for float, numpy.float64, etc.)
+            return not math.isnan(float(value))
+        except (TypeError, ValueError):
+            return False
+    
     def inject_metadata(self, image_path: str, telemetry: dict) -> bool:
         """
         Inject GPS and camera metadata into an image
@@ -75,8 +95,8 @@ class ExifInjector:
         # Build ExifTool command
         cmd = [self.exiftool_path]
         
-        # GPS data
-        if telemetry.get('latitude') is not None:
+        # GPS data - use _is_valid_number to properly handle NaN values
+        if self._is_valid_number(telemetry.get('latitude')):
             lat = telemetry['latitude']
             lat_ref = 'N' if lat >= 0 else 'S'
             cmd.extend([
@@ -84,7 +104,7 @@ class ExifInjector:
                 f'-GPSLatitudeRef={lat_ref}'
             ])
         
-        if telemetry.get('longitude') is not None:
+        if self._is_valid_number(telemetry.get('longitude')):
             lon = telemetry['longitude']
             lon_ref = 'E' if lon >= 0 else 'W'
             cmd.extend([
@@ -93,34 +113,36 @@ class ExifInjector:
             ])
         
         # Altitude (use rel_altitude if available, otherwise altitude)
-        altitude = telemetry.get('rel_altitude') or telemetry.get('altitude')
-        if altitude is not None:
+        rel_alt = telemetry.get('rel_altitude')
+        alt = telemetry.get('altitude')
+        altitude = rel_alt if self._is_valid_number(rel_alt) else alt
+        if self._is_valid_number(altitude):
             cmd.extend([
                 f'-GPSAltitude={abs(altitude)}',
                 f'-GPSAltitudeRef={0 if altitude >= 0 else 1}',  # 0 = above sea level
                 f'-AbsoluteAltitude={altitude}',
-                f'-RelativeAltitude={telemetry.get("rel_altitude", altitude)}'
+                f'-RelativeAltitude={rel_alt if self._is_valid_number(rel_alt) else altitude}'
             ])
         
         # Gimbal/Camera orientation
-        if telemetry.get('gimbal_pitch') is not None:
+        if self._is_valid_number(telemetry.get('gimbal_pitch')):
             cmd.append(f'-XMP:GimbalPitchDegree={telemetry["gimbal_pitch"]}')
             cmd.append(f'-CameraElevationAngle={telemetry["gimbal_pitch"]}')
         
-        if telemetry.get('gimbal_yaw') is not None:
+        if self._is_valid_number(telemetry.get('gimbal_yaw')):
             cmd.append(f'-XMP:GimbalYawDegree={telemetry["gimbal_yaw"]}')
         
-        if telemetry.get('yaw') is not None:
+        if self._is_valid_number(telemetry.get('yaw')):
             cmd.append(f'-XMP:FlightYawDegree={telemetry["yaw"]}')
             # Some photogrammetry software uses different tags
             cmd.append(f'-GPSImgDirection={telemetry["yaw"]}')
             cmd.append(f'-GPSImgDirectionRef=T')  # T = True North
         
         # Camera settings
-        if telemetry.get('iso') is not None:
+        if self._is_valid_number(telemetry.get('iso')):
             cmd.append(f'-ISO={int(telemetry["iso"])}')
         
-        if telemetry.get('shutter') is not None:
+        if self._is_valid_number(telemetry.get('shutter')):
             cmd.append(f'-ShutterSpeed={telemetry["shutter"]}')
         
         # Additional metadata
