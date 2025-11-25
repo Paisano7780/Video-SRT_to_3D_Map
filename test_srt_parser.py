@@ -184,12 +184,12 @@ class TestSRTParserFormatB:
         
         # Check first record
         first = df.iloc[0]
-        assert first['latitude'] == pytest.approx(34.052200, rel=1e-5)
-        assert first['longitude'] == pytest.approx(-118.243700, rel=1e-5)
-        assert first['altitude'] == pytest.approx(2.0, rel=1e-5)
-        assert first['gimbal_pitch'] == pytest.approx(0.0, rel=1e-5)
-        assert first['gimbal_yaw'] == pytest.approx(10.0, rel=1e-5)
-        assert first['yaw'] == pytest.approx(10.0, rel=1e-5)
+        assert first['latitude'] == pytest.approx(34.052200)
+        assert first['longitude'] == pytest.approx(-118.243700)
+        assert first['altitude'] == 2.0
+        assert first['gimbal_pitch'] == 0.0
+        assert first['gimbal_yaw'] == 10.0
+        assert first['yaw'] == 10.0
         assert first['iso'] == 100
     
     def test_format_b_timestamps(self, tmp_path):
@@ -201,9 +201,9 @@ class TestSRTParserFormatB:
         df = parser.parse()
         
         # Check timestamps
-        assert df['timestamp'].iloc[0] == pytest.approx(0.0)
-        assert df['timestamp'].iloc[1] == pytest.approx(5.0)
-        assert df['timestamp'].iloc[2] == pytest.approx(10.0)
+        assert df['timestamp'].iloc[0] == 0.0
+        assert df['timestamp'].iloc[1] == 5.0
+        assert df['timestamp'].iloc[2] == 10.0
     
     def test_format_b_second_record(self, tmp_path):
         """Test Format B second record with negative gimbal pitch"""
@@ -215,6 +215,6 @@ class TestSRTParserFormatB:
         
         # Check second record (has negative gimbal_pitch)
         second = df.iloc[1]
-        assert second['latitude'] == pytest.approx(34.052250, rel=1e-5)
-        assert second['gimbal_pitch'] == pytest.approx(-10.0, rel=1e-5)
-        assert second['yaw'] == pytest.approx(45.0, rel=1e-5)
+        assert second['latitude'] == pytest.approx(34.052250)
+        assert second['gimbal_pitch'] == -10.0
+        assert second['yaw'] == 45.0
