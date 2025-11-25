@@ -64,6 +64,42 @@ def create_test_image(filepath):
         return True
 
 
+def has_gps_latitude(image_path: str) -> bool:
+    """
+    Helper function to check if an image has GPS latitude data
+    
+    Args:
+        image_path: Path to the image file
+        
+    Returns:
+        True if GPS Latitude is present in the image EXIF data
+    """
+    result = subprocess.run(
+        ['exiftool', '-GPSLatitude', image_path],
+        capture_output=True,
+        text=True
+    )
+    return 'GPS Latitude' in result.stdout and result.stdout.strip() != ''
+
+
+def has_gps_longitude(image_path: str) -> bool:
+    """
+    Helper function to check if an image has GPS longitude data
+    
+    Args:
+        image_path: Path to the image file
+        
+    Returns:
+        True if GPS Longitude is present in the image EXIF data
+    """
+    result = subprocess.run(
+        ['exiftool', '-GPSLongitude', image_path],
+        capture_output=True,
+        text=True
+    )
+    return 'GPS Longitude' in result.stdout and result.stdout.strip() != ''
+
+
 class TestExifInjector:
     """Tests for EXIF metadata injection"""
     
@@ -83,7 +119,9 @@ class TestExifInjector:
         """Test the _is_valid_number static method handles various values correctly"""
         from exif_injector import ExifInjector
         
-        injector = ExifInjector.__new__(ExifInjector)  # Create instance without __init__
+        # Use mock to avoid needing exiftool installed for this test
+        with patch.object(ExifInjector, '_find_exiftool', return_value='exiftool'):
+            injector = ExifInjector()
         
         # Valid numbers
         assert injector._is_valid_number(0) is True
@@ -122,16 +160,17 @@ class TestExifInjector:
         
         assert result is True
         
-        # Verify GPS data was written
+        # Verify GPS data was written using helper functions
+        assert has_gps_latitude(test_image)
+        assert has_gps_longitude(test_image)
+        
+        # Check additional GPS data
         exif_result = subprocess.run(
             ['exiftool', '-GPS*', test_image],
             capture_output=True,
             text=True
         )
-        
         output = exif_result.stdout
-        assert 'GPS Latitude' in output
-        assert 'GPS Longitude' in output
         assert 'GPS Altitude' in output
         # Check approximate values (South latitude, West longitude)
         assert 'S' in output  # South
@@ -156,17 +195,9 @@ class TestExifInjector:
         
         assert result is True  # Injection should succeed (just skip NaN values)
         
-        # Verify GPS lat/lon was NOT written
-        exif_result = subprocess.run(
-            ['exiftool', '-GPSLatitude', '-GPSLongitude', test_image],
-            capture_output=True,
-            text=True
-        )
-        
-        output = exif_result.stdout
-        # Should NOT contain latitude/longitude values
-        assert 'GPS Latitude' not in output or output.strip() == ''
-        assert 'GPS Longitude' not in output or output.strip() == ''
+        # Verify GPS lat/lon was NOT written using helper functions
+        assert not has_gps_latitude(test_image)
+        assert not has_gps_longitude(test_image)
     
     @pytest.mark.skipif(not is_exiftool_available(), reason="ExifTool not installed")
     def test_inject_metadata_with_none_gps(self, test_image):
@@ -185,15 +216,8 @@ class TestExifInjector:
         
         assert result is True
         
-        # Verify GPS lat/lon was NOT written
-        exif_result = subprocess.run(
-            ['exiftool', '-GPSLatitude', '-GPSLongitude', test_image],
-            capture_output=True,
-            text=True
-        )
-        
-        output = exif_result.stdout
-        assert 'GPS Latitude' not in output or output.strip() == ''
+        # Verify GPS lat/lon was NOT written using helper function
+        assert not has_gps_latitude(test_image)
     
     @pytest.mark.skipif(not is_exiftool_available(), reason="ExifTool not installed")
     def test_inject_metadata_positive_coordinates(self, test_image):
@@ -210,8 +234,12 @@ class TestExifInjector:
         
         assert result is True
         
+        # Verify GPS data was written
+        assert has_gps_latitude(test_image)
+        assert has_gps_longitude(test_image)
+        
         exif_result = subprocess.run(
-            ['exiftool', '-GPSLatitude', '-GPSLatitudeRef', '-GPSLongitude', '-GPSLongitudeRef', test_image],
+            ['exiftool', '-GPSLatitudeRef', '-GPSLongitudeRef', test_image],
             capture_output=True,
             text=True
         )
@@ -329,14 +357,9 @@ class TestExifInjector:
         
         assert success_count == 3
         
-        # Verify all images have GPS data
+        # Verify all images have GPS data using helper function
         for path in image_paths:
-            exif_result = subprocess.run(
-                ['exiftool', '-GPSLatitude', path],
-                capture_output=True,
-                text=True
-            )
-            assert 'GPS Latitude' in exif_result.stdout
+            assert has_gps_latitude(path)
     
     @pytest.mark.skipif(not is_exiftool_available(), reason="ExifTool not installed")
     def test_batch_inject_with_nan_values(self, tmp_path):
@@ -363,17 +386,12 @@ class TestExifInjector:
         # All should succeed (NaN values are just skipped)
         assert success_count == 3
         
-        # First and third should have GPS, second should not
+        # First and third should have GPS, second should not using helper function
         for i, path in enumerate(image_paths):
-            exif_result = subprocess.run(
-                ['exiftool', '-GPSLatitude', path],
-                capture_output=True,
-                text=True
-            )
             if i == 1:  # Second image had NaN
-                assert 'GPS Latitude' not in exif_result.stdout or exif_result.stdout.strip() == ''
+                assert not has_gps_latitude(path)
             else:
-                assert 'GPS Latitude' in exif_result.stdout
+                assert has_gps_latitude(path)
     
     def test_inject_metadata_file_not_found(self):
         """Test that FileNotFoundError is raised for missing file"""
@@ -433,14 +451,9 @@ class TestExifInjectorWithDataFrame:
         
         assert success_count == 3
         
-        # Verify first two have GPS latitude, third does not
+        # Verify first two have GPS latitude, third does not using helper function
         for i, path in enumerate(image_paths):
-            exif_result = subprocess.run(
-                ['exiftool', '-GPSLatitude', path],
-                capture_output=True,
-                text=True
-            )
             if i == 2:  # Third image had NaN latitude
-                assert 'GPS Latitude' not in exif_result.stdout or exif_result.stdout.strip() == ''
+                assert not has_gps_latitude(path)
             else:
-                assert 'GPS Latitude' in exif_result.stdout
+                assert has_gps_latitude(path)
