@@ -39,6 +39,12 @@ class TestWebODMManager:
         result = manager.check_docker_running()
         assert isinstance(result, bool)
     
+    def test_check_docker_in_path(self):
+        """Test Docker in PATH check"""
+        manager = WebODMManager()
+        result = manager.check_docker_in_path()
+        assert isinstance(result, bool)
+    
     def test_check_webodm_exists(self):
         """Test WebODM directory existence check"""
         manager = WebODMManager()
@@ -80,6 +86,30 @@ class TestWebODMManager:
         assert os.path.isabs(manager.webodm_path)
 
 
+class TestDockerPathCheck:
+    """Test the new check_docker_in_path method"""
+    
+    @patch('shutil.which')
+    def test_check_docker_in_path_found(self, mock_which):
+        """Test check_docker_in_path returns True when docker is in PATH"""
+        mock_which.return_value = "/usr/bin/docker"
+        
+        manager = WebODMManager()
+        result = manager.check_docker_in_path()
+        
+        assert result is True
+    
+    @patch('shutil.which')
+    def test_check_docker_in_path_not_found(self, mock_which):
+        """Test check_docker_in_path returns False when docker is not in PATH"""
+        mock_which.return_value = None
+        
+        manager = WebODMManager()
+        result = manager.check_docker_in_path()
+        
+        assert result is False
+
+
 class TestDockerErrorHandling:
     """Test Docker error scenarios from the issue screenshot"""
     
@@ -108,11 +138,11 @@ class TestDockerErrorHandling:
         
         assert result is False
     
-    @patch('subprocess.run')
-    def test_start_webodm_docker_not_installed(self, mock_run):
+    @patch('webodm_manager.WebODMManager.check_docker_in_path')
+    def test_start_webodm_docker_not_installed(self, mock_in_path):
         """Test start_webodm returns proper error when Docker is not installed"""
-        # Simulate Docker not installed
-        mock_run.side_effect = FileNotFoundError()
+        # Simulate Docker not found in PATH
+        mock_in_path.return_value = False
         
         manager = WebODMManager()
         success, message = manager.start_webodm()
@@ -121,29 +151,31 @@ class TestDockerErrorHandling:
         assert "Docker is not installed" in message
         assert "Please install Docker Desktop first" in message
     
-    @patch('webodm_manager.WebODMManager.check_docker_installed')  # Applied second (first param)
+    @patch('webodm_manager.WebODMManager.check_docker_in_path')    # Applied second (first param)
     @patch('webodm_manager.WebODMManager.wait_for_docker_ready')   # Applied first (second param)
-    def test_start_webodm_docker_not_running(self, mock_wait, mock_installed):
+    def test_start_webodm_docker_not_running(self, mock_wait, mock_in_path):
         """Test start_webodm returns proper error when Docker is not running"""
-        # Docker is installed but not running
-        mock_installed.return_value = True
+        # Docker is in PATH but service not responding
+        mock_in_path.return_value = True
         mock_wait.return_value = False
         
         manager = WebODMManager()
         success, message = manager.start_webodm()
         
         assert success is False
-        assert "Docker is not running" in message
-        assert "Please start Docker Desktop" in message
+        # New Spanish error message per issue requirements
+        assert "Error Crítico de Servicio" in message
+        assert "60 segundos" in message
+        assert "WSL" in message
     
     @patch('webodm_manager.WebODMManager.check_webodm_exists')     # Applied third (first param)
-    @patch('webodm_manager.WebODMManager.check_docker_installed')  # Applied second (second param)
-    @patch('webodm_manager.WebODMManager.check_docker_running')    # Applied first (third param)
-    def test_start_webodm_directory_not_found(self, mock_running, mock_installed, mock_webodm_exists):
+    @patch('webodm_manager.WebODMManager.check_docker_in_path')    # Applied second (second param)
+    @patch('webodm_manager.WebODMManager.wait_for_docker_ready')   # Applied first (third param)
+    def test_start_webodm_directory_not_found(self, mock_wait, mock_in_path, mock_webodm_exists):
         """Test start_webodm returns proper error when WebODM directory is missing"""
         # Docker is fine but WebODM directory doesn't exist
-        mock_installed.return_value = True
-        mock_running.return_value = True
+        mock_in_path.return_value = True
+        mock_wait.return_value = True
         mock_webodm_exists.return_value = False
         
         manager = WebODMManager()
@@ -174,24 +206,26 @@ class TestDockerErrorHandling:
 class TestWebODMErrorMessages:
     """Test that error messages match those shown in the issue screenshot"""
     
-    @patch('subprocess.run')
-    def test_docker_not_installed_message_format(self, mock_run):
-        """Test Docker not installed error message matches screenshot format"""
-        mock_run.side_effect = FileNotFoundError()
+    @patch('webodm_manager.WebODMManager.check_docker_in_path')
+    def test_docker_not_installed_message_format(self, mock_in_path):
+        """Test Docker not installed error message matches expected format"""
+        mock_in_path.return_value = False
         
         manager = WebODMManager()
         success, message = manager.start_webodm()
         
         assert success is False
-        # Message should match the error dialog in screenshot
+        # Message should indicate Docker is not installed
         assert "Docker is not installed" in message
         assert "Please install Docker Desktop" in message
     
-    @patch('os.path.exists')                                        # Applied second (first param)
-    @patch('webodm_manager.WebODMManager.check_docker_installed')  # Applied first (second param)
-    def test_webodm_not_found_message_format(self, mock_docker, mock_exists):
+    @patch('webodm_manager.WebODMManager.check_webodm_exists')         # Applied third (first param)
+    @patch('webodm_manager.WebODMManager.wait_for_docker_ready')       # Applied second (second param)
+    @patch('webodm_manager.WebODMManager.check_docker_in_path')        # Applied first (third param)
+    def test_webodm_not_found_message_format(self, mock_in_path, mock_wait, mock_exists):
         """Test WebODM not found error message includes path information"""
-        mock_docker.return_value = True
+        mock_in_path.return_value = True
+        mock_wait.return_value = True
         mock_exists.return_value = False
         
         manager = WebODMManager()
@@ -202,10 +236,10 @@ class TestWebODMErrorMessages:
         # Should include the path where it was looking
         assert manager.webodm_path in message or "webodm" in message.lower()
     
-    @patch('subprocess.run')
-    def test_ensure_running_propagates_error_messages(self, mock_run):
+    @patch('webodm_manager.WebODMManager.check_docker_in_path')
+    def test_ensure_running_propagates_error_messages(self, mock_in_path):
         """Test that ensure_running propagates error messages from start_webodm"""
-        mock_run.side_effect = FileNotFoundError()
+        mock_in_path.return_value = False
         
         manager = WebODMManager()
         success, message = manager.ensure_running()
@@ -340,28 +374,30 @@ class TestDockerWaitTimeout:
         assert mock_run.call_count == 2
     
     @patch('webodm_manager.WebODMManager.wait_for_docker_ready')
-    @patch('webodm_manager.WebODMManager.check_docker_installed')
-    def test_start_webodm_calls_wait_for_docker_ready(self, mock_installed, mock_wait):
+    @patch('webodm_manager.WebODMManager.check_docker_in_path')
+    def test_start_webodm_calls_wait_for_docker_ready(self, mock_in_path, mock_wait):
         """Test that start_webodm calls wait_for_docker_ready during the startup process"""
-        mock_installed.return_value = True
+        mock_in_path.return_value = True
         mock_wait.return_value = False  # Docker not ready
         
         manager = WebODMManager()
         success, message = manager.start_webodm()
         
         assert success is False
-        assert "Docker is not running" in message
+        # New Spanish error message per issue requirements
+        assert "Error Crítico de Servicio" in message
+        assert "60 segundos" in message
         # Verify wait_for_docker_ready was called
         mock_wait.assert_called_once()
     
     @patch('webodm_manager.WebODMManager.is_webodm_running')
     @patch('webodm_manager.WebODMManager.check_webodm_exists')
     @patch('webodm_manager.WebODMManager.wait_for_docker_ready')
-    @patch('webodm_manager.WebODMManager.check_docker_installed')
-    def test_start_webodm_waits_patiently_for_docker(self, mock_installed, mock_wait, 
+    @patch('webodm_manager.WebODMManager.check_docker_in_path')
+    def test_start_webodm_waits_patiently_for_docker(self, mock_in_path, mock_wait, 
                                                       mock_exists, mock_running):
         """Test that start_webodm waits patiently for Docker before proceeding"""
-        mock_installed.return_value = True
+        mock_in_path.return_value = True
         mock_wait.return_value = True  # Docker becomes ready
         mock_exists.return_value = False  # WebODM doesn't exist (to trigger early exit)
         
