@@ -131,3 +131,90 @@ gimbal_pitch: -89.0 gimbal_yaw: 2.0
         assert pd.isna(df['gimbal_yaw'].iloc[0])
         assert pd.isna(df['longitude'].iloc[1])
         assert pd.isna(df['yaw'].iloc[2])
+
+
+def create_format_b_srt(filepath):
+    """Create a sample SRT file using Format B (Lat:, Lon:, GimbalYaw:)"""
+    content = """1
+00:00:00,000 --> 00:00:05,000
+Lat: 34.052200, Lon: -118.243700, Alt: 2.0m, ISO: 100, Shutter: 1/100
+Time: 00:00:00.000, Yaw: 10.0, GimbalYaw: 10.0, GimbalPitch: 0.0
+
+2
+00:00:05,000 --> 00:00:10,000
+Lat: 34.052250, Lon: -118.243650, Alt: 3.5m, ISO: 100, Shutter: 1/200
+Time: 00:00:05.000, Yaw: 45.0, GimbalYaw: 45.0, GimbalPitch: -10.0
+
+3
+00:00:10,000 --> 00:00:15,000
+Lat: 34.052300, Lon: -118.243600, Alt: 4.2m, ISO: 100, Shutter: 1/100
+Time: 00:00:10.000, Yaw: 80.0, GimbalYaw: 80.0, GimbalPitch: -5.0
+"""
+    with open(filepath, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+
+class TestSRTParserFormatB:
+    """Tests for SRT Format B (Lat:, Lon:, GimbalYaw:, GimbalPitch:)"""
+    
+    def test_parse_format_b_srt_file(self, tmp_path):
+        """Test parsing Format B SRT file"""
+        srt_file = tmp_path / "format_b.SRT"
+        create_format_b_srt(srt_file)
+        
+        parser = SRTParser(str(srt_file))
+        df = parser.parse()
+        
+        assert len(df) == 3
+        assert 'timestamp' in df.columns
+        assert 'latitude' in df.columns
+        assert 'longitude' in df.columns
+        assert 'altitude' in df.columns
+        assert 'gimbal_pitch' in df.columns
+        assert 'gimbal_yaw' in df.columns
+        assert 'yaw' in df.columns
+    
+    def test_format_b_telemetry_values(self, tmp_path):
+        """Test Format B telemetry data extraction"""
+        srt_file = tmp_path / "format_b.SRT"
+        create_format_b_srt(srt_file)
+        
+        parser = SRTParser(str(srt_file))
+        df = parser.parse()
+        
+        # Check first record
+        first = df.iloc[0]
+        assert first['latitude'] == pytest.approx(34.052200, rel=1e-5)
+        assert first['longitude'] == pytest.approx(-118.243700, rel=1e-5)
+        assert first['altitude'] == pytest.approx(2.0, rel=1e-5)
+        assert first['gimbal_pitch'] == pytest.approx(0.0, rel=1e-5)
+        assert first['gimbal_yaw'] == pytest.approx(10.0, rel=1e-5)
+        assert first['yaw'] == pytest.approx(10.0, rel=1e-5)
+        assert first['iso'] == 100
+    
+    def test_format_b_timestamps(self, tmp_path):
+        """Test Format B timestamp parsing"""
+        srt_file = tmp_path / "format_b.SRT"
+        create_format_b_srt(srt_file)
+        
+        parser = SRTParser(str(srt_file))
+        df = parser.parse()
+        
+        # Check timestamps
+        assert df['timestamp'].iloc[0] == pytest.approx(0.0)
+        assert df['timestamp'].iloc[1] == pytest.approx(5.0)
+        assert df['timestamp'].iloc[2] == pytest.approx(10.0)
+    
+    def test_format_b_second_record(self, tmp_path):
+        """Test Format B second record with negative gimbal pitch"""
+        srt_file = tmp_path / "format_b.SRT"
+        create_format_b_srt(srt_file)
+        
+        parser = SRTParser(str(srt_file))
+        df = parser.parse()
+        
+        # Check second record (has negative gimbal_pitch)
+        second = df.iloc[1]
+        assert second['latitude'] == pytest.approx(34.052250, rel=1e-5)
+        assert second['gimbal_pitch'] == pytest.approx(-10.0, rel=1e-5)
+        assert second['yaw'] == pytest.approx(45.0, rel=1e-5)

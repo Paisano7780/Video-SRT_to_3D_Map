@@ -69,16 +69,28 @@ class SRTParser:
         # Extract telemetry from remaining lines
         telemetry_text = ' '.join(lines[2:])
         
+        # Support multiple DJI SRT formats:
+        # Format A: [latitude: -34.6037] or latitude: -34.6037
+        # Format B: Lat: 34.052200, Lon: -118.243700, Alt: 2.0m, GimbalYaw: 10.0
         telemetry = {
             'timestamp': timestamp,
-            'latitude': self._extract_value(telemetry_text, r'latitude[:\s]+(-?\d+\.\d+)'),
-            'longitude': self._extract_value(telemetry_text, r'longitude[:\s]+(-?\d+\.\d+)'),
-            'altitude': self._extract_value(telemetry_text, r'altitude[:\s]+(-?\d+\.?\d*)'),
+            # Latitude: supports "latitude:", "Lat:", with optional brackets/units
+            'latitude': self._extract_value(telemetry_text, r'(?:latitude|lat)[:\s]+(-?\d+\.?\d*)'),
+            # Longitude: supports "longitude:", "Lon:"
+            'longitude': self._extract_value(telemetry_text, r'(?:longitude|lon)[:\s]+(-?\d+\.?\d*)'),
+            # Altitude: supports "altitude:", "Alt:" with optional unit (m)
+            'altitude': self._extract_value(telemetry_text, r'(?:altitude|alt)[:\s]+(-?\d+\.?\d*)'),
+            # Relative altitude: supports "rel_alt:"
             'rel_altitude': self._extract_value(telemetry_text, r'rel_alt[:\s]+(-?\d+\.?\d*)'),
-            'gimbal_pitch': self._extract_value(telemetry_text, r'gimbal_pitch[:\s]+(-?\d+\.?\d*)'),
-            'gimbal_yaw': self._extract_value(telemetry_text, r'gimbal_yaw[:\s]+(-?\d+\.?\d*)'),
-            'yaw': self._extract_value(telemetry_text, r'(?<!gimbal_)yaw[:\s]+(-?\d+\.?\d*)'),
+            # Gimbal pitch: supports "gimbal_pitch:", "GimbalPitch:"
+            'gimbal_pitch': self._extract_value(telemetry_text, r'gimbal_?pitch[:\s]+(-?\d+\.?\d*)'),
+            # Gimbal yaw: supports "gimbal_yaw:", "GimbalYaw:"
+            'gimbal_yaw': self._extract_value(telemetry_text, r'gimbal_?yaw[:\s]+(-?\d+\.?\d*)'),
+            # Yaw (flight direction): supports "yaw:" but not "GimbalYaw:"
+            'yaw': self._extract_value(telemetry_text, r'(?<!gimbal_)(?<!Gimbal)yaw[:\s]+(-?\d+\.?\d*)'),
+            # ISO: supports "iso:", "ISO:"
             'iso': self._extract_value(telemetry_text, r'iso[:\s]+(\d+)'),
+            # Shutter: supports "shutter:", "Shutter:" with fractions
             'shutter': self._extract_value(telemetry_text, r'shutter[:\s]+([0-9/.]+)'),
         }
         
