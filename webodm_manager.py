@@ -55,6 +55,20 @@ class WebODMManager:
         except (subprocess.TimeoutExpired, FileNotFoundError):
             return False
     
+    def check_docker_in_path(self) -> bool:
+        """
+        Simple check if docker executable exists in PATH.
+        On Windows, this checks for docker.exe.
+        This is a lightweight check that assumes Docker is "installed"
+        if the executable is found, without requiring the daemon to be running.
+        
+        Returns:
+            True if docker executable exists in PATH
+        """
+        import shutil
+        docker_executable = "docker.exe" if platform.system() == "Windows" else "docker"
+        return shutil.which(docker_executable) is not None
+    
     def check_docker_running(self) -> bool:
         """
         Check if Docker daemon is running
@@ -123,9 +137,9 @@ class WebODMManager:
             print("Docker aún no está listo. Reintentando en 5 segundos...")
             time.sleep(5)
         
-        # Timeout expired
-        print(f"❌ ERROR: Docker no se pudo conectar después de {self.DOCKER_TIMEOUT} segundos.")
-        print("Por favor, asegúrese de que Docker Desktop está abierto y el icono está verde.")
+        # Timeout expired - show critical error message per issue requirements
+        print(f"❌ Error Crítico de Servicio: Docker no respondió después de {self.DOCKER_TIMEOUT} segundos.")
+        print("Por favor, reinicie su PC y verifique la configuración de Integración WSL en Docker Desktop.")
         return False
     
     def check_webodm_exists(self) -> bool:
@@ -167,13 +181,18 @@ class WebODMManager:
         Returns:
             Tuple of (success, message)
         """
-        # Check prerequisites
-        if not self.check_docker_installed():
+        # Check prerequisites - use simple PATH check instead of full docker verification
+        # This allows us to proceed to wait_for_docker_ready even if Docker daemon isn't responding yet
+        if not self.check_docker_in_path():
             return False, "Docker is not installed. Please install Docker Desktop first."
         
         # Wait for Docker to be ready (with timeout and retry logic)
+        # This is the robust, patient waiting mechanism that handles Docker startup delays
         if not self.wait_for_docker_ready():
-            return False, "Docker is not running. Please start Docker Desktop."
+            return False, (
+                "❌ Error Crítico de Servicio: Docker no respondió después de 60 segundos. "
+                "Por favor, reinicie su PC y verifique la configuración de Integración WSL en Docker Desktop."
+            )
         
         if not self.check_webodm_exists():
             return False, f"WebODM not found at {self.webodm_path}. Please ensure the repository is cloned correctly."
